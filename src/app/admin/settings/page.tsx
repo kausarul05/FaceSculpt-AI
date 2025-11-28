@@ -3,17 +3,19 @@ import { Pencil } from "lucide-react";
 import Image from "next/image";
 import React, { useRef, useState, useEffect } from "react";
 import profile from "@/../public/images/profile.jpg"
-import { apiRequest } from "@/app/lib/api";
 import { toast } from "react-toastify";
 
 export default function Page() {
-    const [activeTab, setActiveTab] = useState("profile"); // "profile" or "password"
+    // State for active tab (profile or password)
+    const [activeTab, setActiveTab] = useState("profile");
+    
+    // Refs and state for profile image handling
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [preview, setPreview] = useState<string>(profile.src);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
     
-    // Form data state
+    // Form data state for profile information
     const [formData, setFormData] = useState({
         fullname: "",
         email: "",
@@ -24,14 +26,14 @@ export default function Page() {
         Bio: ""
     });
 
-    // Password form state
+    // Form data state for password change
     const [passwordData, setPasswordData] = useState({
         current_password: "",
         new_password: "",
         confirm_password: ""
     });
 
-    // Available options for dropdowns
+    // Fake data for dropdown options - simulating API response
     const availableOptions = {
         countries: ["United States", "Canada", "United Kingdom", "Australia", "Germany", "France"],
         cities: ["New York", "Los Angeles", "Chicago", "Toronto", "London", "Sydney"],
@@ -39,73 +41,82 @@ export default function Page() {
         genders: ["male", "female", "other", "prefer not to say"]
     };
 
-    // Fetch profile data
+    // Fake user data to simulate API response
+    const fakeUserData = {
+        fullname: "John Doe",
+        email: "john.doe@example.com",
+        Country: "United States",
+        City: "New York",
+        Province: "California",
+        Gender: "male",
+        Bio: "Software developer with 5+ years of experience in web development.",
+        profile_picture: profile.src
+    };
+
+    // Simulate fetching profile data from API
     const fetchProfileData = async () => {
         try {
             setLoading(true);
-            const response = await apiRequest(
-                "GET", 
-                "/accounts/profile/", 
-                null,
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
-                    }
-                } 
-            );
+            
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Use fake data instead of actual API call
+            const profileData = fakeUserData;
+            
+            console.log("Loaded fake profile data:", profileData);
+            
+            // Set form data with fake user data
+            setFormData({
+                fullname: profileData.fullname,
+                email: profileData.email,
+                Country: profileData.Country,
+                City: profileData.City,
+                Province: profileData.Province,
+                Gender: profileData.Gender,
+                Bio: profileData.Bio
+            });
 
-            console.log("response from profile fetch:", response); // Debug log 
-
-            if (response) {
-                const profileData = response;
-                console.log("Profile data received:", profileData); // Debug log
-                
-                setFormData({
-                    fullname: profileData.fullname || "",
-                    email: profileData.email || "", // Add email if available from API
-                    Country: profileData.Country || "",
-                    City: profileData.City || "",
-                    Province: profileData.Province || "",
-                    Gender: profileData.Gender || "",
-                    Bio: profileData.Bio || ""
-                });
-
-                // Set profile picture if available
-                if (profileData.profile_picture) {
-                    setPreview(profileData.profile_picture);
-                }
-            } else if (response.error) {
-                console.error("Error fetching profile:", response.error);
-                toast.error("Error loading profile data");
+            // Set profile picture
+            if (profileData.profile_picture) {
+                setPreview(profileData.profile_picture);
             }
+            
+            toast.success("Profile data loaded successfully!");
+            
         } catch (error) {
-            console.error("Error fetching profile:", error);
+            console.error("Error loading profile:", error);
             toast.error("Error loading profile data");
         } finally {
             setLoading(false);
         }
     };
 
+    // Load profile data on component mount
     useEffect(() => {
         fetchProfileData();
     }, []);
 
+    // Handle click on edit profile picture icon
     const handleEditClick = () => {
         if (fileInputRef.current) {
             fileInputRef.current.click();
         }
     };
 
+    // Handle profile picture file selection
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Create preview URL for selected image
             const imageUrl = URL.createObjectURL(file);
             setPreview(imageUrl);
-            // Here you would typically upload the image to the server
+            toast.success("Profile picture updated!");
+            // Note: In real implementation, you would upload the image to server here
         }
     };
 
-    // Handle input changes for profile
+    // Handle input changes for profile form fields
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { id, value } = e.target;
         setFormData(prev => ({
@@ -114,7 +125,7 @@ export default function Page() {
         }));
     };
 
-    // Handle password input changes - FIXED VERSION
+    // Handle input changes for password form fields
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setPasswordData(prev => ({
@@ -129,30 +140,22 @@ export default function Page() {
         setSaving(true);
         
         try {
-            const response = await apiRequest(
-                "PATCH", 
-                "/accounts/profile/update/", 
-                {
-                    fullname: formData.fullname,
-                    Country: formData.Country,
-                    City: formData.City,
-                    Province: formData.Province,
-                    Gender: formData.Gender,
-                    Bio: formData.Bio
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
-                    }
-                }
-            );
-
-            if (response) {
-                toast.success("Profile updated successfully!");
-            } else if (response.error) {
-                console.error("Failed to update profile:", response.error);
-                toast.error("Failed to update profile: " + response.error);
-            }
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Log the data that would be sent to API
+            console.log("Profile update data:", {
+                fullname: formData.fullname,
+                Country: formData.Country,
+                City: formData.City,
+                Province: formData.Province,
+                Gender: formData.Gender,
+                Bio: formData.Bio
+            });
+            
+            // Simulate successful update
+            toast.success("Profile updated successfully!");
+            
         } catch (error) {
             console.error("Error updating profile:", error);
             toast.error("Error updating profile. Please try again.");
@@ -165,43 +168,41 @@ export default function Page() {
     const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Validate that new passwords match
         if (passwordData.new_password !== passwordData.confirm_password) {
             toast.error("New passwords do not match!");
+            return;
+        }
+
+        // Validate password strength (basic check)
+        if (passwordData.new_password.length < 6) {
+            toast.error("New password must be at least 6 characters long!");
             return;
         }
 
         setSaving(true);
         
         try {
-            const response = await apiRequest(
-                "POST", 
-                "/accounts/change_pass/", 
-                {
-                    old_password: passwordData.current_password,
-                    new_password: passwordData.new_password,
-                    confirm_password: passwordData.confirm_password
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
-                    }
-                }
-            );
-
-            // console.log("response from password change:", response); // Debug log
-
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Log the data that would be sent to API
+            console.log("Password change data:", {
+                old_password: passwordData.current_password,
+                new_password: passwordData.new_password,
+                confirm_password: passwordData.confirm_password
+            });
+            
+            // Simulate successful password change
             toast.success("Password changed successfully!");
             
-            if (response) {
-                setPasswordData({
-                    current_password: "",
-                    new_password: "",
-                    confirm_password: ""
-                });
-            } else if (response.error) {
-                console.error("Failed to change password:", response.error);
-                toast.error("Failed to change password: " + response.error);
-            }
+            // Reset password form
+            setPasswordData({
+                current_password: "",
+                new_password: "",
+                confirm_password: ""
+            });
+            
         } catch (error) {
             console.error("Error changing password:", error);
             toast.error("Error changing password. Please try again.");
@@ -210,17 +211,20 @@ export default function Page() {
         }
     };
 
+    // Loading state UI
     if (loading) {
         return (
             <div className="min-h-screen bg-[#0A2131] text-white p-6">
                 <div className="flex gap-6">
+                    {/* Sidebar loading skeleton */}
                     <div className="mb-8 w-[400px] bg-[#0D314B] h-full p-4 rounded-lg">
-                        {/* Loading skeleton for sidebar */}
                         <div className="animate-pulse">
                             <div className="h-10 bg-gray-700 rounded mb-2"></div>
                             <div className="h-10 bg-gray-700 rounded"></div>
                         </div>
                     </div>
+                    
+                    {/* Main content loading skeleton */}
                     <div className="bg-[#0D314B] w-full rounded-lg border border-[#1b4b70] p-6">
                         <div className="animate-pulse">
                             <div className="h-6 bg-gray-700 rounded w-1/3 mb-4"></div>
@@ -237,15 +241,16 @@ export default function Page() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0A2131] text-white p-6">
+        <div className="min-h-screen bg-[#000000] text-white p-6">
             <div className="flex gap-6">
-                {/* Sidebar */}
-                <div className="mb-8 w-[400px] bg-[#0D314B] h-full p-4 rounded-lg">
+                {/* Sidebar Navigation */}
+                <div className="mb-8 w-[400px] bg-[#1A2028] h-full p-4 rounded-lg">
                     <div className="mb-2">
                         <button
                             onClick={() => setActiveTab("profile")}
-                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${activeTab === "profile" ? "bg-[#007ED6]" : ""
-                                }`}
+                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${
+                                activeTab === "profile" ? "bg-[#60A5FB]" : ""
+                            }`}
                         >
                             Profile Information
                         </button>
@@ -253,19 +258,23 @@ export default function Page() {
                     <div>
                         <button
                             onClick={() => setActiveTab("password")}
-                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${activeTab === "password" ? "bg-[#007ED6]" : ""
-                                }`}
+                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${
+                                activeTab === "password" ? "bg-[#60A5FB]" : ""
+                            }`}
                         >
                             Change Password
                         </button>
                     </div>
                 </div>
 
-                {/* Main Content */}
-                <div className="bg-[#0D314B] w-full rounded-lg border border-[#1b4b70] p-6">
+                {/* Main Content Area */}
+                <div className="bg-[#1A2028] w-full rounded-lg  p-6">
+                    {/* Profile Information Tab */}
                     {activeTab === "profile" && (
                         <div>
                             <h2 className="text-lg font-semibold mb-4">Profile</h2>
+                            
+                            {/* Profile Picture Section */}
                             <div className="relative mb-5">
                                 <Image
                                     src={preview}
@@ -275,7 +284,7 @@ export default function Page() {
                                     className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover"
                                 />
 
-                                {/* Edit Icon */}
+                                {/* Edit Profile Picture Button */}
                                 <div
                                     onClick={handleEditClick}
                                     className="absolute left-15 bottom-0 bg-gray-600 p-1.5 sm:p-2 rounded-full cursor-pointer hover:bg-gray-700 transition"
@@ -283,7 +292,7 @@ export default function Page() {
                                     <Pencil size={16} className="sm:w-5 sm:h-5" color="white" />
                                 </div>
 
-                                {/* Hidden file input */}
+                                {/* Hidden File Input */}
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -292,10 +301,15 @@ export default function Page() {
                                     onChange={handleFileChange}
                                 />
                             </div>
+                            
+                            {/* Profile Form */}
                             <form onSubmit={handleSubmit}>
                                 <div className="space-y-4 sm:space-y-6">
+                                    {/* Display Name Field */}
                                     <div>
-                                        <label className="block text-sm font-semibold" htmlFor="fullname">Display Name</label>
+                                        <label className="block text-sm font-semibold" htmlFor="fullname">
+                                            Display Name
+                                        </label>
                                         <input
                                             type="text"
                                             id="fullname"
@@ -303,12 +317,15 @@ export default function Page() {
                                             placeholder="Enter Your Display Name"
                                             value={formData.fullname}
                                             onChange={handleInputChange}
-                                            className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm"
+                                            className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm"
                                         />
                                     </div>
 
+                                    {/* Email Field (Disabled) */}
                                     <div>
-                                        <label className="block text-sm font-semibold" htmlFor="email">Email</label>
+                                        <label className="block text-sm font-semibold" htmlFor="email">
+                                            Email
+                                        </label>
                                         <input
                                             type="email"
                                             id="email"
@@ -316,108 +333,117 @@ export default function Page() {
                                             value={formData.email}
                                             onChange={handleInputChange}
                                             disabled
-                                            className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
                                         <small className="text-gray-400 text-xs">Email cannot be changed</small>
                                     </div>
 
+                                    {/* Location Fields Row */}
                                     <div className='flex flex-col sm:flex-row justify-between gap-4 sm:gap-6'>
+                                        {/* Country Field */}
                                         <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="Country">Country</label>
+                                            <label className="block text-sm font-semibold" htmlFor="Country">
+                                                Country
+                                            </label>
                                             <select
                                                 id="Country"
                                                 name="Country"
                                                 value={formData.Country}
                                                 onChange={handleInputChange}
-                                                className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm"
+                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
                                             >
                                                 <option value="">Select Your Country</option>
                                                 {availableOptions.countries.map(country => (
                                                     <option key={country} value={country}>{country}</option>
                                                 ))}
-                                                {formData.Country && !availableOptions.countries.includes(formData.Country) && (
-                                                    <option value={formData.Country}>{formData.Country}</option>
-                                                )}
                                             </select>
                                         </div>
 
+                                        {/* City Field */}
                                         <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="City">City</label>
+                                            <label className="block text-sm font-semibold" htmlFor="City">
+                                                City
+                                            </label>
                                             <select
                                                 id="City"
                                                 name="City"
                                                 value={formData.City}
                                                 onChange={handleInputChange}
-                                                className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm"
+                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
                                             >
                                                 <option value="">Select Your City</option>
                                                 {availableOptions.cities.map(city => (
                                                     <option key={city} value={city}>{city}</option>
                                                 ))}
-                                                {formData.City && !availableOptions.cities.includes(formData.City) && (
-                                                    <option value={formData.City}>{formData.City}</option>
-                                                )}
                                             </select>
                                         </div>
                                     </div>
 
+                                    {/* Province and Gender Fields Row */}
                                     <div className='flex flex-col sm:flex-row justify-between gap-4 sm:gap-6'>
+                                        {/* Province Field */}
                                         <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="Province">Province</label>
+                                            <label className="block text-sm font-semibold" htmlFor="Province">
+                                                Province
+                                            </label>
                                             <select
                                                 id="Province"
                                                 name="Province"
                                                 value={formData.Province}
                                                 onChange={handleInputChange}
-                                                className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm"
+                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
                                             >
                                                 <option value="">Select Your Province</option>
                                                 {availableOptions.provinces.map(province => (
                                                     <option key={province} value={province}>{province}</option>
                                                 ))}
-                                                {formData.Province && !availableOptions.provinces.includes(formData.Province) && (
-                                                    <option value={formData.Province}>{formData.Province}</option>
-                                                )}
                                             </select>
                                         </div>
 
+                                        {/* Gender Field */}
                                         <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="Gender">Gender</label>
+                                            <label className="block text-sm font-semibold" htmlFor="Gender">
+                                                Gender
+                                            </label>
                                             <select
                                                 id="Gender"
                                                 name="Gender"
                                                 value={formData.Gender}
                                                 onChange={handleInputChange}
-                                                className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm"
+                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
                                             >
                                                 <option value="">Select Your Gender</option>
                                                 {availableOptions.genders.map(gender => (
-                                                    <option key={gender} value={gender}>{gender}</option>
+                                                    <option key={gender} value={gender}>
+                                                        {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                                                    </option>
                                                 ))}
-                                                {formData.Gender && !availableOptions.genders.includes(formData.Gender) && (
-                                                    <option value={formData.Gender}>{formData.Gender}</option>
-                                                )}
                                             </select>
                                         </div>
                                     </div>
 
+                                    {/* Bio Field */}
                                     <div>
-                                        <label className="block text-sm font-semibold" htmlFor="Bio">Bio</label>
+                                        <label className="block text-sm font-semibold" htmlFor="Bio">
+                                            Bio
+                                        </label>
                                         <textarea
                                             id="Bio"
                                             name="Bio"
                                             placeholder="Enter Your Bio"
                                             value={formData.Bio}
                                             onChange={handleInputChange}
-                                            className="w-full mt-2 p-3 bg-[#0D314B] border border-[#007ED6] text-white rounded-lg text-sm"
+                                            rows={4}
+                                            className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm"
                                         ></textarea>
                                     </div>
 
+                                    {/* Save Button */}
                                     <div className="mt-6 sm:mt-8">
                                         <button
                                             type="submit"
                                             disabled={saving}
-                                            className="py-3 sm:py-4 px-8 sm:px-14 bg-[#007ED6] text-white font-semibold text-sm rounded-lg hover:bg-[#0066b3] disabled:bg-gray-600 disabled:cursor-not-allowed transition duration-300 cursor-pointer w-full sm:w-auto"
+                                            className="py-3 sm:py-4 px-8 sm:px-14 bg-[#60A5FB] text-white font-semibold text-sm rounded-lg  disabled:bg-gray-600 disabled:cursor-not-allowed transition duration-300 cursor-pointer w-full sm:w-auto"
                                         >
                                             {saving ? "Saving..." : "Save"}
                                         </button>
@@ -427,48 +453,62 @@ export default function Page() {
                         </div>
                     )}
 
+                    {/* Change Password Tab */}
                     {activeTab === "password" && (
                         <div>
                             <h2 className="text-lg font-semibold mb-4">Change Password</h2>
                             <form onSubmit={handlePasswordSubmit}>
+                                {/* Current Password Field */}
                                 <div className="mb-6">
-                                    <label className="block text-sm font-medium mb-2">Current Password</label>
+                                    <label className="block text-sm font-medium mb-2">
+                                        Current Password
+                                    </label>
                                     <input
                                         type="password"
                                         name="current_password"
                                         placeholder="Enter Current Password"
                                         value={passwordData.current_password}
                                         onChange={handlePasswordChange}
-                                        className="w-full bg-[#0A2131] border border-[#1b4b70] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
+                                        className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />
                                 </div>
+                                
+                                {/* New Password Field */}
                                 <div className="mb-6">
-                                    <label className="block text-sm font-medium mb-2">New Password</label>
+                                    <label className="block text-sm font-medium mb-2">
+                                        New Password
+                                    </label>
                                     <input
                                         type="password"
                                         name="new_password"
                                         placeholder="Enter New Password"
                                         value={passwordData.new_password}
                                         onChange={handlePasswordChange}
-                                        className="w-full bg-[#0A2131] border border-[#1b4b70] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
+                                        className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />
                                 </div>
+                                
+                                {/* Confirm New Password Field */}
                                 <div className="mb-6">
-                                    <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                                    <label className="block text-sm font-medium mb-2">
+                                        Confirm New Password
+                                    </label>
                                     <input
                                         type="password"
                                         name="confirm_password"
                                         placeholder="Confirm New Password"
                                         value={passwordData.confirm_password}
                                         onChange={handlePasswordChange}
-                                        className="w-full bg-[#0A2131] border border-[#1b4b70] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
+                                        className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />
                                 </div>
+                                
+                                {/* Update Password Button */}
                                 <div className="flex justify-end">
                                     <button 
                                         type="submit"
                                         disabled={saving}
-                                        className="bg-[#007ED6] hover:bg-[#006bb3] text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="bg-[#60A5FB] text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                     >
                                         {saving ? "Updating..." : "Update Password"}
                                     </button>

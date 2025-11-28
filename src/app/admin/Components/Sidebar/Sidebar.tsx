@@ -23,47 +23,47 @@ export default function Sidebar() {
     const menuItems = [
         { href: "/admin", icon: LayoutDashboard, label: "Dashboards" },
         { href: "/admin/user-management", icon: History, label: "User Management" },
-        {
-            href: "#",
-            icon: Star,
-            label: "Subscriptions Management",
-            hasNested: true,
-            nestedItems: [
-                { href: "/admin/subscriptions/plans", label: "Plans" },
-                { href: "/admin/subscriptions/subscribers", label: "Subscribers" }
-            ]
-        },
-        { href: "/admin/products-management", icon: User, label: "Products Management" },
-        { href: "/admin/review-management", icon: User, label: "Review Management" },
+        // {
+        //     href: "#",
+        //     icon: Star,
+        //     label: "Subscriptions Management",
+        //     hasNested: true,
+        //     nestedItems: [
+        //         { href: "/admin/subscriptions/plans", label: "Plans" },
+        //         { href: "/admin/subscriptions/subscribers", label: "Subscribers" }
+        //     ]
+        // },
+        // { href: "/admin/products-management", icon: User, label: "Products Management" },
+        // { href: "/admin/review-management", icon: User, label: "Review Management" },
         { href: "/admin/settings", icon: Lock, label: "Settings" },
     ];
 
     // Auto-open menu if current page is a nested item
-    useEffect(() => {
-        const subscriptionsItem = menuItems.find(item => item.hasNested);
-        if (subscriptionsItem?.nestedItems?.some(nested => pathname === nested.href)) {
-            setIsSubscriptionsOpen(true);
-        }
-    }, [pathname, menuItems]);
+    // useEffect(() => {
+    //     const subscriptionsItem = menuItems.find(item => item.hasNested);
+    //     if (subscriptionsItem?.nestedItems?.some(nested => pathname === nested.href)) {
+    //         setIsSubscriptionsOpen(true);
+    //     }
+    // }, [pathname, menuItems]);
 
-    const handleMouseEnter = () => {
-        if (hoverTimeout) {
-            clearTimeout(hoverTimeout);
-        }
-        setIsSubscriptionsOpen(true);
-    };
+    // const handleMouseEnter = () => {
+    //     if (hoverTimeout) {
+    //         clearTimeout(hoverTimeout);
+    //     }
+    //     setIsSubscriptionsOpen(true);
+    // };
 
-    const handleMouseLeave = () => {
-        const timeout = setTimeout(() => {
-            const subscriptionsItem = menuItems.find(item => item.hasNested);
-            const isOnNestedItem = subscriptionsItem?.nestedItems?.some(nested => pathname === nested.href);
+    // const handleMouseLeave = () => {
+    //     const timeout = setTimeout(() => {
+    //         const subscriptionsItem = menuItems.find(item => item.hasNested);
+    //         const isOnNestedItem = subscriptionsItem?.nestedItems?.some(nested => pathname === nested.href);
 
-            if (!isOnNestedItem) {
-                setIsSubscriptionsOpen(false);
-            }
-        }, 300);
-        setHoverTimeout(timeout);
-    };
+    //         if (!isOnNestedItem) {
+    //             setIsSubscriptionsOpen(false);
+    //         }
+    //     }, 300);
+    //     setHoverTimeout(timeout);
+    // };
 
     return (
         <div className="w-[385px] bg-[#1A2028] h-screen text-white py-14 pt-4 px-10 fixed z-50">
@@ -74,11 +74,11 @@ export default function Sidebar() {
                         alt="Logo"
                         width={800}
                         height={600}
-                        className="w-[230px] object-fill mx-auto"
+                        className="w-[65px] object-fill"
                     />
                 </Link>
             </div>
-            <ul className="space-y-1 mt-10">
+            <ul className="space-y-1 mt-5">
                 {menuItems.map((item) => {
                     if (item.hasNested) {
                         const isActive = item.nestedItems?.some(nested => pathname === nested.href);

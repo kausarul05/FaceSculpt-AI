@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleQuestionMark, Search, X } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import userImage from "@/../public/images/profile.jpg"
 import Image from 'next/image';
@@ -168,7 +168,7 @@ export default function UserManagement() {
             setActionLoading(null);
             setShowDeleteModal(false);
             setUserToDelete(null);
-            
+
             // If current page becomes empty, go to previous page
             if (users.length === 1 && currentPage > 1) {
                 setCurrentPage(currentPage - 1);
@@ -197,12 +197,12 @@ export default function UserManagement() {
     };
 
     // Filter users based on search term
-    const filteredUsers = searchTerm 
-        ? fakeUsers.filter(user => 
+    const filteredUsers = searchTerm
+        ? fakeUsers.filter(user =>
             user.Fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.phone_number.toLowerCase().includes(searchTerm.toLowerCase())
-          )
+        )
         : fakeUsers;
 
     // Calculate pagination
@@ -338,7 +338,7 @@ export default function UserManagement() {
                                     </tr>
                                 ) : (
                                     users.map((user, index) => (
-                                        <tr key={user.id} className="">
+                                        <tr key={user.id} className="border-b border-[#60A5FB66]">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                                                 {startIndexDisplay + index + 1}
                                             </td>
@@ -369,7 +369,7 @@ export default function UserManagement() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 <div className="flex space-x-3">
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleView(user)}
                                                         className="bg-[#60A5FB29] px-4 py-1 text-[#60A5FB] rounded cursor-pointer font-medium transition-colors hover:bg-[#60A5FB40] flex items-center gap-2"
                                                     >
@@ -435,7 +435,7 @@ export default function UserManagement() {
                                         onClick={() => handlePageChange(page)}
                                         disabled={loading}
                                         className={`w-10 h-10 font-bold text-sm rounded transition-colors cursor-pointer ${currentPage === page
-                                            ? 'bg-[#245FE7] text-white'
+                                            ? 'bg-[#60A5FB] text-white'
                                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                             } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
@@ -462,10 +462,10 @@ export default function UserManagement() {
             {/* View User Modal */}
             {showViewModal && selectedUser && (
                 <div className="fixed inset-0 bg-black/85 bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#1A2028] rounded-lg w-full max-w-md border border-[#60A5FB]">
+                    <div className="bg-[#000000] rounded-lg w-full max-w-md border border-[#4b4b4b]">
                         <div className="flex justify-between items-center p-6 ">
                             <h3 className="text-lg font-semibold text-white">User Details</h3>
-                            <button 
+                            <button
                                 onClick={closeModals}
                                 className="text-gray-400 hover:text-white cursor-pointer"
                             >
@@ -491,8 +491,9 @@ export default function UserManagement() {
                             <p className="text-white"><span className='font-bold text-gray-400'>Full name:</span> Savannah Nguyen</p>
                             <p className="text-white"><span className='font-bold text-gray-400'>Phone number:</span> (207) 555-0119</p>
                             <p className="text-white"><span className='font-bold text-gray-400'>Registration Date:</span> January 20, 2025</p>
+                            <p className="text-white"><span className='font-bold text-gray-400'>Amount:</span> $69.99</p>
                             <p className="text-white"><span className='font-bold text-gray-400'>Subscriptions:</span> Monthly</p>
-                            
+
                             {/* <div className="space-y-3">
                                 <div>
                                     <label className="text-gray-400 text-sm">Full name</label>
@@ -520,35 +521,38 @@ export default function UserManagement() {
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#1A2028] rounded-lg w-full max-w-md border border-[#FE4D4F]">
-                        <div className="flex justify-between items-center p-6 border-b border-[#FE4D4F]">
-                            <h3 className="text-lg font-semibold text-white">Delete this Account?</h3>
-                            <button 
-                                onClick={closeModals}
-                                className="text-gray-400 hover:text-white"
-                            >
-                                <X size={24} />
-                            </button>
+                <div className="fixed inset-0 bg-black/85 bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="relative bg-[#000000] rounded-lg w-full max-w-md border border-[#4b4b4b]">
+                        <button
+                            onClick={closeModals}
+                            className="text-gray-400 hover:text-white absolute right-4 top-4 cursor-pointer"
+                        >
+                            <X size={24} />
+                        </button>
+                        <div className='text-center p-5 pb-0'>
+                            <CircleQuestionMark size={100} color='#FE4D4F' className='mx-auto rounded-full' />
+                        </div>
+                        <div className="p-6 pb-0">
+                            <h3 className="text-lg font-semibold text-white text-center">Remove this Account?</h3>
                         </div>
                         <div className="p-6">
-                            <p className="text-white mb-4">
-                                Once deleted, this user will permanently be removed from the system
+                            <p className="text-white mb-4 text-center border-b border-[#D8D9E0] pb-2">
+                                Once Delete, this user will permanently remove from the system
                             </p>
-                            <p className="text-gray-400 text-sm mb-6">What would you like to do next?</p>
-                            <div className="flex justify-end space-x-3">
+                            <p className="mb-6 text-center">What would you like to do next?</p>
+                            <div className="flex justify-center space-x-3">
                                 <button
                                     onClick={closeModals}
-                                    className="px-6 py-2 text-white border border-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                                    className="px-6 py-2 w-full text-[#60A5FB] border border-[#60A5FB] rounded-lg hover:bg-gray-700 transition-colors cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={() => userToDelete && handleRemove(userToDelete)}
                                     disabled={actionLoading !== null}
-                                    className="bg-[#FE4D4F] text-white px-6 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="bg-[#FE4D4F] w-full text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
-                                    {actionLoading ? 'Deleting...' : 'Delete'}
+                                    {actionLoading ? 'Removing...' : 'Remove'}
                                 </button>
                             </div>
                         </div>
