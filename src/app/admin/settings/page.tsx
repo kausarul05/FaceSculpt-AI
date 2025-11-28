@@ -214,10 +214,10 @@ export default function Page() {
     // Loading state UI
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0A2131] text-white p-6">
+            <div className="min-h-screen bg-[#1A2028] text-white p-6">
                 <div className="flex gap-6">
                     {/* Sidebar loading skeleton */}
-                    <div className="mb-8 w-[400px] bg-[#0D314B] h-full p-4 rounded-lg">
+                    <div className="mb-8 w-[400px] bg-[#1A2028] h-full p-4 rounded-lg">
                         <div className="animate-pulse">
                             <div className="h-10 bg-gray-700 rounded mb-2"></div>
                             <div className="h-10 bg-gray-700 rounded"></div>
@@ -225,7 +225,7 @@ export default function Page() {
                     </div>
                     
                     {/* Main content loading skeleton */}
-                    <div className="bg-[#0D314B] w-full rounded-lg border border-[#1b4b70] p-6">
+                    <div className="bg-[#1A2028] w-full rounded-lg p-6">
                         <div className="animate-pulse">
                             <div className="h-6 bg-gray-700 rounded w-1/3 mb-4"></div>
                             <div className="space-y-4">
