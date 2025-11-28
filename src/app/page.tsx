@@ -156,7 +156,7 @@ export default function LoginPage() {
               <span className="ml-2 text-xs text-white">Remember Me</span>
             </label>
             <button
-              onClick={() => router.push("/forgot-password")}
+              onClick={() => router.push("/forget-password")}
               className="text-sm text-[#EB4335] cursor-pointer disabled:opacity-50"
               disabled={isLoading}
             >

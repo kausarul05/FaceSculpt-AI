@@ -7,7 +7,8 @@ import {
     User,
     Lock,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Settings
 } from "lucide-react";
 import React, { useState, useEffect } from 'react'
 import logo from "@/../public/images/logo.png"
@@ -35,7 +36,7 @@ export default function Sidebar() {
         // },
         // { href: "/admin/products-management", icon: User, label: "Products Management" },
         // { href: "/admin/review-management", icon: User, label: "Review Management" },
-        { href: "/admin/settings", icon: Lock, label: "Settings" },
+        { href: "/admin/settings", icon: Settings, label: "Settings" },
     ];
 
     // Auto-open menu if current page is a nested item

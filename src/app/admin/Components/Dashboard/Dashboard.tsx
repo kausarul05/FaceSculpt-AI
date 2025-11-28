@@ -140,7 +140,11 @@ export default function Dashboard() {
         { month: 'Apr', revenue: 22000 },
         { month: 'May', revenue: 28000 },
         { month: 'Jun', revenue: 32000 },
-        { month: 'Jul', revenue: 45678 },
+        { month: 'Jul', revenue: 25678 },
+        { month: 'Aug', revenue: 75678 },
+        { month: 'Sep', revenue: 35678 },
+        { month: 'Nov', revenue: 15678 },
+        { month: 'Dec', revenue: 95678 },
     ];
 
     const stats: StatItem[] = [
