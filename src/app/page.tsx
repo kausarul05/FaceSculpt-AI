@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/app/lib/api"; // Update the import path
 
 type LoginFormData = {
   email: string;
@@ -56,10 +55,10 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const payload = {
-        email: formData.email,
-        password: formData.password,
-      };
+      // const payload = {
+      //   email: formData.email,
+      //   password: formData.password,
+      // };
 
       // Commented API call for real time logic
       /*
@@ -75,8 +74,9 @@ export default function LoginPage() {
         setError(data.message || "Login failed. Please check your credentials.");
       }
       */
-    } catch (err: any) {
-      setError(err?.error || "Something went wrong. Please try again.");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

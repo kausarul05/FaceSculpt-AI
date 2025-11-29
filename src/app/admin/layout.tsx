@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
 import profile from "@/../public/images/profile.jpg"
-import { ChevronsLeft } from "lucide-react";
+// import { ChevronsLeft } from "lucide-react";
 import AdminAuthWrapper from "./Components/AdminAuthWrapper/AdminAuthWrapper";
 import Sidebar from "./Components/Sidebar/Sidebar";
 import Link from "next/link";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
+// const geistSans = Geist({
+//     variable: "--font-geist-sans",
+//     subsets: ["latin"],
+// });
 
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
-});
+// const geistMono = Geist_Mono({
+//     variable: "--font-geist-mono",
+//     subsets: ["latin"],
+// });
 
 export const metadata: Metadata = {
     title: "Admin Dashboard",

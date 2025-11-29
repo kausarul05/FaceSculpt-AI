@@ -2,9 +2,9 @@
 
 import { ChevronLeft, ChevronRight, CircleQuestionMark, Search, X } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import userImage from "@/../public/images/profile.jpg"
-import Image from 'next/image';
-import { apiRequest } from '@/app/lib/api';
+// import userImage from "@/../public/images/profile.jpg"
+// import Image from 'next/image';
+// import { apiRequest } from '@/app/lib/api';
 import { toast } from 'react-toastify';
 
 interface User {
@@ -17,27 +17,27 @@ interface User {
     subscription: string;
 }
 
-interface ApiResponse {
-    total: number;
-    page: number;
-    page_size: number;
-    total_pages: number;
-    results: User[];
-}
+// interface ApiResponse {
+//     total: number;
+//     page: number;
+//     page_size: number;
+//     total_pages: number;
+//     results: User[];
+// }
 
-interface BlockResponse {
-    detail: string;
-}
+// interface BlockResponse {
+//     detail: string;
+// }
 
-interface DeleteResponse {
-    detail: string;
-}
+// interface DeleteResponse {
+//     detail: string;
+// }
 
 export default function UserManagement() {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -216,7 +216,7 @@ export default function UserManagement() {
         setUsers(paginatedUsers);
         setTotalItems(totalFilteredItems);
         setTotalPages(totalFilteredPages);
-    }, [currentPage, searchTerm]);
+    }, [currentPage, searchTerm, paginatedUsers.length]);
 
     // Debounced search - fetch new data when search term changes
     useEffect(() => {

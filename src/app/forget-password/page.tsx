@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { X, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 // import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
@@ -103,9 +103,13 @@ export default function ForgotPasswordModal() {
       setCountdown(59);
       setCanResend(false);
       
-    } catch (error: any) {
+    } catch (error) {
       // Handle errors
-      setMessage(error.message || "Failed to send verification code.");
+      setMessage(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Failed to send verification code."
+          : "Failed to send verification code."
+      );
     } finally {
       setLoading(false);
     }
@@ -136,9 +140,13 @@ export default function ForgotPasswordModal() {
       setCurrentStep("newPassword");
       setMessage("");
       
-    } catch (error: any) {
+    } catch (error) {
       // Handle verification errors
-      setMessage(error.message || "Invalid verification code.");
+      setMessage(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Invalid verification code."
+          : "Invalid verification code."
+      );
     } finally {
       setLoading(false);
     }
@@ -182,9 +190,13 @@ export default function ForgotPasswordModal() {
       toast.success("Password reset successfully!");
       setCurrentStep("success");
       
-    } catch (error: any) {
+    } catch (error) {
       // Handle password reset errors
-      setMessage(error.message || "Failed to reset password.");
+      setMessage(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Failed to reset password."
+          : "Failed to reset password."
+      );
     } finally {
       setLoading(false);
     }
@@ -208,9 +220,13 @@ export default function ForgotPasswordModal() {
         setCanResend(false);
         setMessage("Verification code sent successfully!");
         
-      } catch (error: any) {
+      } catch (error) {
         // Handle resend errors
-        setMessage(error.message || "Failed to resend code.");
+        setMessage(
+        typeof error === "object" && error !== null && "message" in error
+          ? (error as { message?: string }).message || "Failed to resend code."
+          : "Failed to resend code."
+      );
       } finally {
         setLoading(false);
       }
@@ -323,7 +339,7 @@ export default function ForgotPasswordModal() {
           </p>
 
           {/* Error/Success Message Display */}
-          {/* {message && (
+          {message && (
             <div className={`mb-4 p-3 rounded-lg text-sm border ${
               message.includes("successfully") || message.includes("sent") 
                 ? "bg-green-500/10 text-green-300 border-green-500/30" 
@@ -331,7 +347,7 @@ export default function ForgotPasswordModal() {
             }`}>
               {message}
             </div>
-          )} */}
+          )}
 
           {/* Step 1: Phone Number Input */}
           {currentStep === "email" && (

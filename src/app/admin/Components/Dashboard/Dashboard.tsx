@@ -1,11 +1,9 @@
 'use client'
 
 import { Users } from 'lucide-react';
-import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import userImage from "@/../public/images/profile.jpg"
-import { apiRequest } from '@/app/lib/api';
 
 // Define types
 interface StatItem {
@@ -40,50 +38,50 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
     label?: string;
 }
 
-interface ApiResponse<T> {
-    data?: T;
-    error?: string;
-}
+// interface ApiResponse<T> {
+//     data?: T;
+//     error?: string;
+// }
 
-interface TotalEarningsResponse {
-    success: boolean;
-    message: string;
-    data: {
-        total: number;
-    };
-}
+// interface TotalEarningsResponse {
+//     success: boolean;
+//     message: string;
+//     data: {
+//         total: number;
+//     };
+// }
 
-interface SubscribersResponse {
-    count: number;
-    next: string | null;
-    previous: string | null;
-    results: any[];
-}
+// interface SubscribersResponse {
+//     count: number;
+//     next: string | null;
+//     previous: string | null;
+//     results: any[];
+// }
 
-interface EarningsOverviewResponse {
-    success: boolean;
-    message: string;
-    data: {
-        earnings: Array<{
-            month: string;
-            total: number;
-        }>;
-        growth_percentage: number;
-        trend: string;
-    };
-}
+// interface EarningsOverviewResponse {
+//     success: boolean;
+//     message: string;
+//     data: {
+//         earnings: Array<{
+//             month: string;
+//             total: number;
+//         }>;
+//         growth_percentage: number;
+//         trend: string;
+//     };
+// }
 
 export default function Dashboard() {
-    const [totalUsers, setTotalUsers] = useState<string>('1,250.00');
-    const [totalEarnings, setTotalEarnings] = useState<string>('45,678.00');
-    const [subscribersCount, setSubscribersCount] = useState<string>('892');
+    const [totalUsers] = useState<string>('1,250.00');
+    const [totalEarnings] = useState<string>('45,678.00');
+    // const [subscribersCount, setSubscribersCount] = useState<string>('892');
     const [chartData, setChartData] = useState<ChartData[]>([]);
-    const [growthPercentage, setGrowthPercentage] = useState<number>(15.5);
-    const [loading, setLoading] = useState(false); // Set to false since we're using fake data
+    const [growthPercentage] = useState<number>(15.5);
+    const [loading] = useState(false); // Set to false since we're using fake data
     const [users, setUsers] = useState<User[]>([]);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
-    const itemsPerPage = 10;
+    // const [totalItems, setTotalItems] = useState(0);
+    // const [totalPages, setTotalPages] = useState(0);
+    // const itemsPerPage = 10;
 
     // Fake data for demonstration
     const fakeUsers: User[] = [
@@ -299,15 +297,15 @@ export default function Dashboard() {
         // Using fake data instead of API calls
         setUsers(fakeUsers);
         setChartData(fakeChartData);
-        setTotalItems(fakeUsers.length);
-        setTotalPages(1);
+        // setTotalItems(fakeUsers.length);
+        // setTotalPages(1);
 
         // Commented real API calls
         /*
         fetchDashboardData();
         fetchUsers()
         */
-    }, []);
+    }, [fakeChartData.length, fakeUsers.length]);
 
     // Custom tooltip
     const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label }) => {

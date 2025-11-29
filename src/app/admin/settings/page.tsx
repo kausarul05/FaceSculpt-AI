@@ -95,7 +95,7 @@ export default function Page() {
     // Load profile data on component mount
     useEffect(() => {
         fetchProfileData();
-    }, []);
+    }, [fetchProfileData.length]);
 
     // Handle click on edit profile picture icon
     const handleEditClick = () => {
