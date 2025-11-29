@@ -47,7 +47,7 @@ export default function LoginPage() {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setError("Please enter a valid email address");
+      setError("Please enter a valid Phone Number");
       return;
     }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { Users } from 'lucide-react';
+import { DollarSign, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
 import userImage from "@/../public/images/profile.jpg"
@@ -159,7 +159,8 @@ export default function Dashboard() {
         {
             title: 'Total Earning',
             value: `$${totalEarnings}`,
-            icon: <Users size={24} color='#0ABF9D' className='font-bold' />
+            // icon: <Users size={24} color='#0ABF9D' className='font-bold' />
+            icon: <DollarSign size={24} color='#0ABF9D' className='font-bold'/>
         },
     ];
 
