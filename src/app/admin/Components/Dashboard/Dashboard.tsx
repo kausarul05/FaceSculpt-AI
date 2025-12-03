@@ -1,9 +1,9 @@
 'use client'
 
-import { DollarSign, Users } from 'lucide-react';
+import { apiRequest } from '@/app/lib/api';
+import { DollarSign, ScanQrCode, Users } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from 'recharts';
-import userImage from "@/../public/images/profile.jpg"
 
 // Define types
 interface StatItem {
@@ -18,7 +18,6 @@ interface User {
     phone: string;
     registrationDate: string;
     subscription: string;
-    image: typeof userImage;
     Fullname?: string;
     date_joined: string;
     is_active: boolean;
@@ -27,6 +26,15 @@ interface User {
 interface ChartData {
     month: string;
     revenue: number;
+}
+
+interface DashboardStats {
+    cards: {
+        total_users: number;
+        total_earnings: number;
+        total_scans: number;
+    };
+    graph_data: any[];
 }
 
 interface CustomTooltipProps extends TooltipProps<number, string> {
@@ -38,159 +46,45 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
     label?: string;
 }
 
-// interface ApiResponse<T> {
-//     data?: T;
-//     error?: string;
-// }
-
-// interface TotalEarningsResponse {
-//     success: boolean;
-//     message: string;
-//     data: {
-//         total: number;
-//     };
-// }
-
-// interface SubscribersResponse {
-//     count: number;
-//     next: string | null;
-//     previous: string | null;
-//     results: any[];
-// }
-
-// interface EarningsOverviewResponse {
-//     success: boolean;
-//     message: string;
-//     data: {
-//         earnings: Array<{
-//             month: string;
-//             total: number;
-//         }>;
-//         growth_percentage: number;
-//         trend: string;
-//     };
-// }
-
 export default function Dashboard() {
-    const [totalUsers] = useState<string>('1,250.00');
-    const [totalEarnings] = useState<string>('45,678.00');
-    // const [subscribersCount, setSubscribersCount] = useState<string>('892');
+    const [totalUsers, setTotalUsers] = useState<string>('0');
+    const [totalEarnings, setTotalEarnings] = useState<string>('0.00');
+    const [totalScans, setTotalScans] = useState<string>('0');
     const [chartData, setChartData] = useState<ChartData[]>([]);
-    const [growthPercentage] = useState<number>(15.5);
-    const [loading] = useState(false); // Set to false since we're using fake data
+    const [growthPercentage, setGrowthPercentage] = useState<number>(0);
+    const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState<User[]>([]);
-    // const [totalItems, setTotalItems] = useState(0);
-    // const [totalPages, setTotalPages] = useState(0);
-    // const itemsPerPage = 10;
-
-    // Fake data for demonstration
-    const fakeUsers: User[] = [
-        {
-            id: 1,
-            name: 'Savannah Nguyen',
-            Fullname: 'Savannah Nguyen',
-            phone: '0123-456-7890',
-            registrationDate: 'January 20, 2025',
-            date_joined: '2025-01-20',
-            subscription: 'Monthly',
-            image: userImage,
-            is_active: true
-        },
-        {
-            id: 2,
-            name: 'Annette Black',
-            Fullname: 'Annette Black',
-            phone: '0123-456-7890',
-            registrationDate: 'February 15, 2025',
-            date_joined: '2025-02-15',
-            subscription: 'Free ',
-            image: userImage,
-            is_active: true
-        },
-        {
-            id: 3,
-            name: 'Cody Fisher',
-            Fullname: 'Cody Fisher',
-            phone: '0123-456-7890',
-            registrationDate: 'March 10, 2025',
-            date_joined: '2025-03-10',
-            subscription: '6 Monthly',
-            image: userImage,
-            is_active: false
-        },
-        {
-            id: 4,
-            name: 'Brooklyn Simmons',
-            Fullname: 'Brooklyn Simmons',
-            phone: '0123-456-7890',
-            registrationDate: 'April 09, 2025',
-            date_joined: '2025-04-09',
-            subscription: 'Free',
-            image: userImage,
-            is_active: true
-        },
-    ];
-
-    const fakeChartData: ChartData[] = [
-        { month: 'Jan', revenue: 12000 },
-        { month: 'Feb', revenue: 19000 },
-        { month: 'Mar', revenue: 15000 },
-        { month: 'Apr', revenue: 22000 },
-        { month: 'May', revenue: 28000 },
-        { month: 'Jun', revenue: 32000 },
-        { month: 'Jul', revenue: 25678 },
-        { month: 'Aug', revenue: 75678 },
-        { month: 'Sep', revenue: 35678 },
-        { month: 'Nov', revenue: 15678 },
-        { month: 'Dec', revenue: 95678 },
-    ];
+    const [totalItems, setTotalItems] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const itemsPerPage = 10;
 
     const stats: StatItem[] = [
         {
-            title: 'Total User',
-            value: `$${totalUsers}`,
+            title: 'Total Users',
+            value: totalUsers,
             icon: <Users size={24} color='#0ABF9D' className='font-bold' />
         },
-        // {
-        //     title: 'Subscribers',
-        //     value: `$${subscribersCount}`,
-        //     icon: <Users size={24} color='#0ABF9D' className='font-bold' />
-        // },
+        {
+            title: 'Total Scans',
+            value: totalScans,
+            icon: <ScanQrCode size={24} color='#0ABF9D' className='font-bold' />
+        },
         {
             title: 'Total Earning',
             value: `$${totalEarnings}`,
-            // icon: <Users size={24} color='#0ABF9D' className='font-bold' />
             icon: <DollarSign size={24} color='#0ABF9D' className='font-bold'/>
         },
     ];
 
-    // Commented real-time API calls
-    /*
     // Fetch dashboard data
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
 
-            // Fetch total earnings
-            const totalUserResponse = await apiRequest(
+            // Fetch dashboard stats
+            const statsResponse = await apiRequest(
                 "GET",
-                "/accounts/users/count/",
-                null,
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
-                    }
-                }
-            );
-            // console.log(totalUserResponse)
-            if (totalUserResponse?.total_users) {
-                setTotalUsers(totalUserResponse.total_users);
-            }
-
-
-            const earningsResponse = await apiRequest(
-                "GET",
-                "/payment/payments/total-earnings/",
+                "/api/dashboard/stats/",
                 null,
                 {
                     headers: {
@@ -199,66 +93,69 @@ export default function Dashboard() {
                 }
             );
 
+            console.log("Dashboard stats response:", statsResponse);
 
-
-            if (earningsResponse.data) {
-                setTotalEarnings(earningsResponse.data.total.toFixed(2));
-            }
-
-            // Fetch subscribers count
-            const subscribersResponse = await apiRequest(
-                "GET",
-                "/payment/payments/",
-                null,
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
+            if (statsResponse.success && statsResponse.data) {
+                const { cards, graph_data } = statsResponse.data;
+                
+                // Set total users
+                if (cards.total_users !== undefined) {
+                    setTotalUsers(cards.total_users.toLocaleString());
+                }
+                
+                // Set total earnings
+                if (cards.total_earnings !== undefined) {
+                    setTotalEarnings(cards.total_earnings.toFixed(2));
+                }
+                
+                // Set total scans
+                if (cards.total_scans !== undefined) {
+                    setTotalScans(cards.total_scans.toLocaleString());
+                }
+                
+                // Set chart data if available
+                if (graph_data && graph_data.length > 0) {
+                    const formattedChartData: ChartData[] = graph_data.map((item: any) => ({
+                        month: item.month || item.date || item.label || 'N/A',
+                        revenue: item.revenue || item.earnings || item.value || 0
+                    }));
+                    setChartData(formattedChartData);
+                } else {
+                    // If no graph data, show empty chart
+                    setChartData([]);
+                }
+                
+                // Calculate growth percentage if we have historical data
+                if (graph_data && graph_data.length >= 2) {
+                    const currentMonth = graph_data[graph_data.length - 1]?.revenue || 0;
+                    const previousMonth = graph_data[graph_data.length - 2]?.revenue || 0;
+                    
+                    if (previousMonth > 0) {
+                        const growth = ((currentMonth - previousMonth) / previousMonth) * 100;
+                        setGrowthPercentage(parseFloat(growth.toFixed(1)));
                     }
                 }
-            );
-
-            if (subscribersResponse.count) {
-                setSubscribersCount(subscribersResponse.count.toString());
-            }
-
-            // Fetch earnings overview
-            const earningsOverviewResponse = await apiRequest(
-                "GET",
-                "/payment/payments/earnings-overview/",
-                null,
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
-                    }
-                }
-            );
-            // console.log(earningsOverviewResponse)
-            if (earningsOverviewResponse.data) {
-                const earningsData = earningsOverviewResponse.data;
-                setChartData(earningsData.earnings.map(item => ({
-                    month: item.month,
-                    revenue: item.total
-                })));
-                setGrowthPercentage(earningsData.growth_percentage);
             }
 
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
+            // You might want to show an error message to the user
         } finally {
             setLoading(false);
         }
     };
 
+    // Fetch users list
     const fetchUsers = async () => {
         try {
             setLoading(true);
+            
             // Build query parameters
-            let endpoint = `/accounts/user_all/?page=1&page_size=5`;
-
-            // Add search parameter if search term exists
-            // if (search) {
-            //   endpoint += `&search=${encodeURIComponent(search)}`;
-            // }
+            const endpoint = `/api/dashboard/users/?page=1&page_size=5`;
+            
+            // Note: You'll need to adjust this endpoint based on your actual API
+            // If you don't have a users endpoint in dashboard, use your accounts endpoint
+            // endpoint = `/accounts/user_all/?page=1&page_size=5`;
 
             const data = await apiRequest("GET", endpoint, null, {
                 headers: {
@@ -266,10 +163,44 @@ export default function Dashboard() {
                 }
             });
 
-            setUsers(data.results);
-            setTotalItems(data.total);
-            setTotalPages(data.total_pages);
-            // setCurrentPage(data.page);
+            console.log("Users response:", data);
+
+            if (data.success && data.data) {
+                // Adjust based on your actual API response structure
+                const usersData = data.data.results || data.data.users || data.data;
+                
+                if (Array.isArray(usersData)) {
+                    const formattedUsers: User[] = usersData.map((user: any, index: number) => ({
+                        id: user.id || index + 1,
+                        name: user.name || user.username || user.Fullname || 'Unknown User',
+                        Fullname: user.Fullname || user.name || user.username || 'Unknown User',
+                        phone: user.phone || user.phone_number || user.mobile || 'N/A',
+                        registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
+                        date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
+                        subscription: user.subscription || user.plan || 'Free',
+                        is_active: user.is_active !== false
+                    }));
+                    setUsers(formattedUsers);
+                    setTotalItems(data.data.total || data.data.count || formattedUsers.length);
+                    setTotalPages(data.data.total_pages || 1);
+                }
+            } else if (data.results) {
+                // Alternative response structure
+                const formattedUsers: User[] = data.results.map((user: any, index: number) => ({
+                    id: user.id || index + 1,
+                    name: user.name || user.username || user.Fullname || 'Unknown User',
+                    Fullname: user.Fullname || user.name || user.username || 'Unknown User',
+                    phone: user.phone || user.phone_number || user.mobile || 'N/A',
+                    registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
+                    date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
+                    subscription: user.subscription || user.plan || 'Free',
+                    is_active: user.is_active !== false
+                }));
+                setUsers(formattedUsers);
+                setTotalItems(data.total || data.count || formattedUsers.length);
+                setTotalPages(data.total_pages || 1);
+            }
+
         } catch (error) {
             console.error('Failed to fetch users:', error);
             setUsers([]);
@@ -279,34 +210,40 @@ export default function Dashboard() {
             setLoading(false);
         }
     };
-    */
 
     const getDisplayName = (user: User) => {
-        return user.Fullname  || 'Unknown User';
+        return user.Fullname || user.name || 'Unknown User';
     };
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return dateString; // Return original string if invalid date
+            }
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return dateString;
+        }
     };
 
     useEffect(() => {
-        // Using fake data instead of API calls
-        setUsers(fakeUsers);
-        setChartData(fakeChartData);
-        // setTotalItems(fakeUsers.length);
-        // setTotalPages(1);
-
-        // Commented real API calls
-        /*
-        fetchDashboardData();
-        fetchUsers()
-        */
-    }, [fakeChartData.length, fakeUsers.length]);
+        const loadData = async () => {
+            await fetchDashboardData();
+            await fetchUsers();
+        };
+        
+        loadData();
+        
+        // Optional: Refresh data every 5 minutes
+        const interval = setInterval(loadData, 5 * 60 * 1000);
+        
+        return () => clearInterval(interval);
+    }, []);
 
     // Custom tooltip
     const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label }) => {
@@ -325,25 +262,27 @@ export default function Dashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0A2131] p-6">
-                <div className="text-white text-center">Loading dashboard data...</div>
+            <div className="min-h-screen bg-[#0A2131] p-6 flex items-center justify-center">
+                <div className="text-white text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p>Loading dashboard data...</p>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="min-h-screen bg-[#000000] p-6">
-
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {stats.map((stat, index) => (
                     <div key={index} className="bg-[#1A2028] rounded-xl shadow-sm p-6">
-                        <div className='flex  justify-between items-center p-10 px-18'>
+                        <div className='flex justify-between items-center p-6'>
                             <div>
                                 <h3 className="text-sm font-semibold text-white mb-2">{stat.title}</h3>
                                 <p className="text-2xl font-bold text-white">{stat.value}</p>
                             </div>
-                            <div className='bg-[#0ABF9D33] p-2 rounded-lg'>{stat.icon}</div>
+                            <div className='bg-[#0ABF9D33] p-3 rounded-lg'>{stat.icon}</div>
                         </div>
                     </div>
                 ))}
@@ -351,7 +290,7 @@ export default function Dashboard() {
 
             <div>
                 {/* Earning Summary Section with Recharts */}
-                <div className="bg-[#1A2028] rounded-xl shadow-sm p-6">
+                <div className="bg-[#1A2028] rounded-xl shadow-sm p-6 mb-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-lg font-semibold text-white">Earning Summary</h2>
                         <div className="flex items-center gap-4">
@@ -359,9 +298,9 @@ export default function Dashboard() {
                                 <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                                 <span className="text-sm text-white">Revenue</span>
                             </div>
-                            <div className={`px-2 py-1 rounded text-sm font-medium ${growthPercentage >= 0
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-red-50 text-red-700'
+                            <div className={`px-3 py-1 rounded text-sm font-medium ${growthPercentage >= 0
+                                ? 'bg-green-500/20 text-green-300 border border-green-500'
+                                : 'bg-red-500/20 text-red-300 border border-red-500'
                                 }`}>
                                 {growthPercentage >= 0 ? '+' : ''}{growthPercentage}% Monthly
                             </div>
@@ -370,40 +309,50 @@ export default function Dashboard() {
 
                     {/* Recharts Bar Chart */}
                     <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis
-                                    dataKey="month"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#fff', fontSize: 12 }}
-                                />
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fill: '#fff', fontSize: 12 }}
-                                    tickFormatter={(value) => `${value / 1000}k`}
-                                />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Bar
-                                    dataKey="revenue"
-                                    fill="#3b82f6"
-                                    radius={[4, 4, 0, 0]}
-                                    name="Revenue"
-                                />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {chartData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                    <XAxis
+                                        dataKey="month"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#fff', fontSize: 12 }}
+                                    />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#fff', fontSize: 12 }}
+                                        tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                    />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Bar
+                                        dataKey="revenue"
+                                        fill="#3b82f6"
+                                        radius={[4, 4, 0, 0]}
+                                        name="Revenue"
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-white">
+                                <p>No revenue data available</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* User Section */}
-                <div className="bg-[#1A2028] rounded-xl shadow-sm p-6 mt-10">
-                    <h2 className="text-lg font-semibold text-white mb-6">User</h2>
+                <div className="bg-[#1A2028] rounded-xl shadow-sm p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-lg font-semibold text-white">Users</h2>
+                        <div className="text-sm text-white">
+                            Total: {totalItems} users
+                        </div>
+                    </div>
 
                     {/* Table */}
                     <div className="rounded-lg shadow-sm overflow-hidden">
-                        {/* Table */}
                         <div className="overflow-x-auto">
                             <table className="w-full border border-[#60A5FB66]">
                                 <thead className="border-b border-[#60A5FB66] bg-[#60A5FB29] rounded-2xl">
@@ -423,29 +372,17 @@ export default function Dashboard() {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                             Subscriptions
                                         </th>
-                                        {/* <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                            Status
-                                        </th> */}
                                     </tr>
                                 </thead>
-                                <tbody className="">
-                                    {
+                                <tbody>
+                                    {users.length > 0 ? (
                                         users.map((user, index) => (
-                                            <tr key={user.id} className="border-b border-[#60A5FB66]">
+                                            <tr key={user.id} className="border-b border-[#60A5FB66] hover:bg-[#60A5FB10]">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                                                     {index + 1}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                                                    <div className='flex items-center gap-3'>
-                                                        {/* <Image
-                                                            src={userImage}
-                                                            alt={"user profile"}
-                                                            width={120}
-                                                            height={60}
-                                                            className='w-10 h-10 object-fill rounded'
-                                                        /> */}
-                                                        {getDisplayName(user)}
-                                                    </div>
+                                                    {getDisplayName(user)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F9FAFB]">
                                                     {user.phone}
@@ -454,29 +391,52 @@ export default function Dashboard() {
                                                     {formatDate(user.date_joined)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`inline-flex px-2 py-1 text-xs font-semibold text-[#F9FAFB]`}
-                                                    >
+                                                    <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                                                        user.subscription?.toLowerCase().includes('free')
+                                                            ? 'bg-gray-500/20 text-gray-300 border border-gray-500'
+                                                            : user.subscription?.toLowerCase().includes('monthly')
+                                                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500'
+                                                            : user.subscription?.toLowerCase().includes('6 month') || user.subscription?.toLowerCase().includes('yearly')
+                                                            ? 'bg-green-500/20 text-green-300 border border-green-500'
+                                                            : 'bg-purple-500/20 text-purple-300 border border-purple-500'
+                                                    }`}>
                                                         {user.subscription}
                                                     </span>
                                                 </td>
-                                                {/* <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${user.is_active === false
-                                                            ? 'bg-red-500/20 text-red-300 border border-red-500'
-                                                            : 'bg-green-500/20 text-green-300 border border-green-500'
-                                                            }`}
-                                                    >
-                                                        {user.is_active === false ? 'Blocked' : 'Active'}
-                                                    </span>
-                                                </td> */}
                                             </tr>
                                         ))
-                                    }
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-8 text-center text-white">
+                                                No users found
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    
+                    {/* Pagination - Optional */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center mt-6 space-x-2">
+                            <button
+                                className="px-3 py-1 text-sm text-white bg-[#60A5FB29] rounded disabled:opacity-50"
+                                disabled={true} // You'll need to implement pagination logic
+                            >
+                                Previous
+                            </button>
+                            <span className="text-white text-sm">
+                                Page 1 of {totalPages}
+                            </span>
+                            <button
+                                className="px-3 py-1 text-sm text-white bg-[#60A5FB29] rounded disabled:opacity-50"
+                                disabled={true} // You'll need to implement pagination logic
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

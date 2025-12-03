@@ -1,43 +1,39 @@
 'use client'
 
+import { apiRequest } from '@/app/lib/api';
 import { ChevronLeft, ChevronRight, CircleQuestionMark, Search, X } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-// import userImage from "@/../public/images/profile.jpg"
-// import Image from 'next/image';
-// import { apiRequest } from '@/app/lib/api';
 import { toast } from 'react-toastify';
 
 interface User {
     id: number;
-    Fullname: string;
-    email: string;
+    name: string;
     phone_number: string;
     date_joined: string;
-    is_active?: boolean;
-    subscription: string;
+    is_active: boolean;
+    current_plan: string;
+    scans_count?: number;
+    Fullname?: string;
 }
 
-// interface ApiResponse {
-//     total: number;
-//     page: number;
-//     page_size: number;
-//     total_pages: number;
-//     results: User[];
-// }
-
-// interface BlockResponse {
-//     detail: string;
-// }
-
-// interface DeleteResponse {
-//     detail: string;
-// }
+interface ApiResponse {
+    success: boolean;
+    code: number;
+    message: string;
+    timestamp: number;
+    data: {
+        count: number;
+        next: string | null;
+        previous: string | null;
+        results: User[];
+    };
+}
 
 export default function UserManagement() {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [users, setUsers] = useState<User[]>([]);
-    const [loading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -47,133 +43,128 @@ export default function UserManagement() {
     const [userToDelete, setUserToDelete] = useState<number | null>(null);
     const itemsPerPage = 10;
 
-    // Fake data for demonstration with phone numbers and subscriptions
-    const fakeUsers: User[] = [
-        {
-            id: 455656885,
-            Fullname: 'Savannah Nguyen',
-            email: 'savannah.nguyen@example.com',
-            phone_number: '(207) 555-0199',
-            date_joined: '2025-01-20',
-            is_active: true,
-            subscription: 'Monthly'
-        },
-        {
-            id: 2,
-            Fullname: 'Annette Black',
-            email: 'annette.black@example.com',
-            phone_number: '(305) 555-0123',
-            date_joined: '2025-02-15',
-            is_active: true,
-            subscription: 'Yearly'
-        },
-        {
-            id: 3,
-            Fullname: 'Cody Fisher',
-            email: 'cody.fisher@example.com',
-            phone_number: '(415) 555-0187',
-            date_joined: '2025-03-10',
-            is_active: false,
-            subscription: '6 Month'
-        },
-        {
-            id: 4,
-            Fullname: 'Brooklyn Simmons',
-            email: 'brooklyn.simmons@example.com',
-            phone_number: '(212) 555-0165',
-            date_joined: '2025-04-09',
-            is_active: true,
-            subscription: 'Free'
-        },
-        {
-            id: 5,
-            Fullname: 'Robert Fox',
-            email: 'robert.fox@example.com',
-            phone_number: '(312) 555-0143',
-            date_joined: '2025-01-12',
-            is_active: true,
-            subscription: 'Monthly'
-        },
-        {
-            id: 6,
-            Fullname: 'Darlene Robertson',
-            email: 'darlene.robertson@example.com',
-            phone_number: '(404) 555-0178',
-            date_joined: '2025-02-28',
-            is_active: false,
-            subscription: 'Yearly'
-        },
-        {
-            id: 7,
-            Fullname: 'Jacob Jones',
-            email: 'jacob.jones@example.com',
-            phone_number: '(503) 555-0134',
-            date_joined: '2025-03-15',
-            is_active: true,
-            subscription: '6 Month'
-        },
-        {
-            id: 8,
-            Fullname: 'Kristin Watson',
-            email: 'kristin.watson@example.com',
-            phone_number: '(617) 555-0192',
-            date_joined: '2025-04-22',
-            is_active: true,
-            subscription: 'Monthly'
-        },
-        {
-            id: 9,
-            Fullname: 'Ralph Edwards',
-            email: 'ralph.edwards@example.com',
-            phone_number: '(214) 555-0156',
-            date_joined: '2025-01-30',
-            is_active: false,
-            subscription: 'Free'
-        },
-        {
-            id: 10,
-            Fullname: 'Leslie Alexander',
-            email: 'leslie.alexander@example.com',
-            phone_number: '(702) 555-0112',
-            date_joined: '2025-02-18',
-            is_active: true,
-            subscription: 'Yearly'
+    // Fetch users from API
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            
+            // Build query parameters
+            let endpoint = `/api/dashboard/users/?page=${currentPage}&page_size=${itemsPerPage}`;
+            
+            // Add search parameter if search term exists
+            if (searchTerm) {
+                endpoint += `&search=${encodeURIComponent(searchTerm)}`;
+            }
+
+            const data: ApiResponse = await apiRequest("GET", endpoint, null, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("authToken")}`
+                }
+            });
+
+            console.log("Users API response:", data);
+
+            if (data.success && data.data) {
+                // Map API response to our User interface
+                const formattedUsers: User[] = data.data.results.map((user: any) => ({
+                    id: user.id,
+                    name: user.name,
+                    phone_number: user.phone_number,
+                    date_joined: user.date_joined,
+                    is_active: user.is_active,
+                    current_plan: user.current_plan,
+                    scans_count: user.scans_count,
+                    Fullname: user.name // Using name as Fullname
+                }));
+                
+                setUsers(formattedUsers);
+                setTotalItems(data.data.count);
+                setTotalPages(Math.ceil(data.data.count / itemsPerPage));
+            } else {
+                toast.error(data.message || 'Failed to fetch users');
+                setUsers([]);
+                setTotalItems(0);
+                setTotalPages(0);
+            }
+        } catch (error: any) {
+            console.error('Failed to fetch users:', error);
+            toast.error(error.message || 'Failed to fetch users');
+            setUsers([]);
+            setTotalItems(0);
+                setTotalPages(0);
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
 
-    // Subscription type colors
-    // const getSubscriptionColor = (subscription: string) => {
-    //     switch (subscription.toLowerCase()) {
-    //         case 'monthly':
-    //             return 'bg-blue-500/20 text-blue-300 border border-blue-500';
-    //         case 'yearly':
-    //             return 'bg-green-500/20 text-green-300 border border-green-500';
-    //         case '6 month':
-    //             return 'bg-purple-500/20 text-purple-300 border border-purple-500';
-    //         case 'free':
-    //             return 'bg-gray-500/20 text-gray-300 border border-gray-500';
-    //         default:
-    //             return 'bg-gray-500/20 text-gray-300 border border-gray-500';
-    //     }
-    // };
-
-    // Fake data handlers
+    // Handle user removal (delete)
     const handleRemove = async (userId: number) => {
-        setActionLoading(userId);
-        // Simulate API delay
-        setTimeout(() => {
-            setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
-            setTotalItems(prev => prev - 1);
-            toast.success('User removed successfully');
+        try {
+            setActionLoading(userId);
+            
+            // Make API call to delete user
+            const response = await apiRequest(
+                "DELETE", 
+                `/api/dashboard/users/${userId}/`, 
+                null,
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
+                    }
+                }
+            );
+
+            console.log("Delete response:", response);
+
+            if (response.success) {
+                toast.success('User removed successfully');
+                // Refresh user list
+                await fetchUsers();
+            } else {
+                toast.error(response.message || 'Failed to remove user');
+            }
+        } catch (error: any) {
+            console.error('Failed to remove user:', error);
+            toast.error(error.message || 'Failed to remove user');
+        } finally {
             setActionLoading(null);
             setShowDeleteModal(false);
             setUserToDelete(null);
+        }
+    };
 
-            // If current page becomes empty, go to previous page
-            if (users.length === 1 && currentPage > 1) {
-                setCurrentPage(currentPage - 1);
+    // Handle user block/unblock
+    const handleToggleBlock = async (userId: number, currentStatus: boolean) => {
+        try {
+            setActionLoading(userId);
+            
+            const endpoint = `/api/dashboard/users/${userId}/block/`;
+            const response = await apiRequest(
+                "POST", 
+                endpoint, 
+                { is_active: !currentStatus },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
+                    }
+                }
+            );
+
+            console.log("Block response:", response);
+
+            if (response.success) {
+                toast.success(`User ${currentStatus ? 'blocked' : 'unblocked'} successfully`);
+                // Refresh user list
+                await fetchUsers();
+            } else {
+                toast.error(response.message || `Failed to ${currentStatus ? 'block' : 'unblock'} user`);
             }
-        }, 1000);
+        } catch (error: any) {
+            console.error('Failed to toggle block status:', error);
+            toast.error(error.message || 'Failed to update user status');
+        } finally {
+            setActionLoading(null);
+        }
     };
 
     // View user details
@@ -196,42 +187,45 @@ export default function UserManagement() {
         setUserToDelete(null);
     };
 
-    // Filter users based on search term
-    const filteredUsers = searchTerm
-        ? fakeUsers.filter(user =>
-            user.Fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.phone_number.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        : fakeUsers;
+    // Get subscription color based on plan
+    const getSubscriptionColor = (plan: string) => {
+        const planLower = plan.toLowerCase();
+        
+        if (planLower.includes('free')) {
+            return 'bg-gray-500/20 text-gray-300 border border-gray-500';
+        } else if (planLower.includes('premium')) {
+            return 'bg-blue-500/20 text-blue-300 border border-blue-500';
+        } else if (planLower.includes('monthly')) {
+            return 'bg-green-500/20 text-green-300 border border-green-500';
+        } else if (planLower.includes('yearly') || planLower.includes('annual')) {
+            return 'bg-purple-500/20 text-purple-300 border border-purple-500';
+        } else if (planLower.includes('lifetime')) {
+            return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500';
+        } else {
+            return 'bg-gray-500/20 text-gray-300 border border-gray-500';
+        }
+    };
 
-    // Calculate pagination
-    const totalFilteredItems = filteredUsers.length;
-    const totalFilteredPages = Math.ceil(totalFilteredItems / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+    // Format plan name for display
+    const formatPlanName = (plan: string) => {
+        if (!plan || plan.toLowerCase() === 'free') return 'Free';
+        
+        // Remove underscores and make it readable
+        return plan
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
 
-    // Initial load with fake data
+    // Fetch users when page or search term changes
     useEffect(() => {
-        setUsers(paginatedUsers);
-        setTotalItems(totalFilteredItems);
-        setTotalPages(totalFilteredPages);
-    }, [currentPage, searchTerm, paginatedUsers.length]);
+        const debounceTimer = setTimeout(() => {
+            fetchUsers();
+        }, 500); // Debounce search by 500ms
 
-    // Debounced search - fetch new data when search term changes
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (currentPage === 1) {
-                setUsers(paginatedUsers);
-                setTotalItems(totalFilteredItems);
-                setTotalPages(totalFilteredPages);
-            } else {
-                setCurrentPage(1);
-            }
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-    }, [searchTerm]);
+        return () => clearTimeout(debounceTimer);
+    }, [currentPage, searchTerm]);
 
     // Handle page change
     const handlePageChange = (page: number) => {
@@ -261,17 +255,33 @@ export default function UserManagement() {
 
     // Format date to match your design
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch {
+            return dateString;
+        }
     };
 
-    // Get display name
-    const getDisplayName = (user: User) => {
-        return user.Fullname || user.email.split('@')[0] || 'Unknown User';
+    // Format time for detailed view
+    const formatDateTime = (dateString: string) => {
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } catch {
+            return dateString;
+        }
     };
 
     // Calculate display values for current page
@@ -282,15 +292,21 @@ export default function UserManagement() {
         <div className="min-h-screen bg-[#000000] p-6">
             <div className='bg-[#1A2028] rounded-lg'>
                 {/* Header */}
-                <div className="flex justify-between items-center p-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
                     <h1 className="text-[20px] font-semibold text-[#F9FAFB]">User Management</h1>
-                    <div className='relative'>
+                    <div className='relative w-full md:w-auto'>
                         <input
                             type="text"
-                            placeholder="Search"
+                            placeholder="Search by name or phone number"
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-4 py-2 border border-[#60A5FB] rounded-lg bg-transparent text-white"
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                // Reset to page 1 on new search
+                                if (e.target.value !== searchTerm) {
+                                    setCurrentPage(1);
+                                }
+                            }}
+                            className="w-full md:w-80 px-4 py-2 border border-[#60A5FB] rounded-lg bg-transparent text-white placeholder-gray-400"
                         />
                         <Search size={18} className='absolute right-4 top-3 cursor-pointer text-white' />
                     </div>
@@ -316,42 +332,51 @@ export default function UserManagement() {
                                         Registration Date
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                        Subscriptions
+                                        Subscription Plan
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                                        Status
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                         Action
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="">
+                            <tbody>
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-4 text-center text-white">
-                                            Loading users...
+                                        <td colSpan={7} className="px-6 py-4 text-center text-white">
+                                            <div className="flex justify-center items-center">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                                                <span className="ml-3">Loading users...</span>
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : users.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-4 text-center text-white">
+                                        <td colSpan={7} className="px-6 py-8 text-center text-white">
                                             {searchTerm ? 'No users found matching your search' : 'No users found'}
                                         </td>
                                     </tr>
                                 ) : (
                                     users.map((user, index) => (
-                                        <tr key={user.id} className="border-b border-[#60A5FB66]">
+                                        <tr key={user.id} className="border-b border-[#60A5FB66] hover:bg-[#60A5FB10]">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                                                 {startIndexDisplay + index + 1}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                                                 <div className='flex items-center gap-3'>
-                                                    {/* <Image
-                                                        src={userImage}
-                                                        alt={getDisplayName(user)}
-                                                        width={120}
-                                                        height={60}
-                                                        className='w-10 h-10 object-fill rounded'
-                                                    /> */}
-                                                    {getDisplayName(user)}
+                                                    <div className="w-10 h-10 bg-[#60A5FB29] rounded-full flex items-center justify-center">
+                                                        <span className="text-white font-medium">
+                                                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <div>{user.name}</div>
+                                                        <div className="text-xs text-gray-400">
+                                                            ID: {user.id}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F9FAFB]">
@@ -361,36 +386,51 @@ export default function UserManagement() {
                                                 {formatDate(user.date_joined)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span
-                                                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded`}
-                                                >
-                                                    {user.subscription}
+                                                <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded ${getSubscriptionColor(user.current_plan)}`}>
+                                                    {formatPlanName(user.current_plan)}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded ${user.is_active
+                                                        ? 'bg-green-500/20 text-green-300 border border-green-500'
+                                                        : 'bg-red-500/20 text-red-300 border border-red-500'
+                                                    }`}>
+                                                    {user.is_active ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <div className="flex space-x-3">
+                                                <div className="flex flex-wrap gap-2">
                                                     <button
                                                         onClick={() => handleView(user)}
-                                                        className="bg-[#60A5FB29] px-4 py-1 text-[#60A5FB] rounded cursor-pointer font-medium transition-colors hover:bg-[#60A5FB40] flex items-center gap-2"
+                                                        className="bg-[#60A5FB29] px-3 py-1 text-[#60A5FB] rounded cursor-pointer font-medium transition-colors hover:bg-[#60A5FB40] flex items-center gap-1 text-sm"
                                                     >
                                                         View
                                                     </button>
                                                     <button
-                                                        onClick={() => handleRemoveClick(user.id)}
+                                                        onClick={() => handleToggleBlock(user.id, user.is_active)}
                                                         disabled={actionLoading === user.id}
-                                                        className="bg-[#551214] px-4 py-1 text-[#FE4D4F] rounded cursor-pointer font-medium transition-colors hover:bg-[#55121480] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                        className={`px-3 py-1 rounded cursor-pointer font-medium transition-colors text-sm flex items-center gap-1 ${user.is_active
+                                                            ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+                                                            : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                                                     >
                                                         {actionLoading === user.id ? (
                                                             <>
-                                                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                                </svg>
-                                                                Removing...
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current"></div>
+                                                                Processing...
                                                             </>
+                                                        ) : user.is_active ? (
+                                                            'Block'
                                                         ) : (
-                                                            'Remove'
+                                                            'Unblock'
                                                         )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRemoveClick(user.id)}
+                                                        disabled={actionLoading === user.id}
+                                                        className="bg-[#551214] px-3 py-1 text-[#FE4D4F] rounded cursor-pointer font-medium transition-colors hover:bg-[#55121480] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                                                    >
+                                                        Remove
                                                     </button>
                                                 </div>
                                             </td>
@@ -402,68 +442,70 @@ export default function UserManagement() {
                     </div>
 
                     {/* Pagination */}
-                    <div className="px-6 py-4 border-t border-[#60A5FB66]">
-                        <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-                            <div className="text-sm text-white">
-                                Showing{' '}
-                                <span className="font-medium">
-                                    {totalItems === 0 ? 0 : startIndexDisplay + 1}
-                                </span>{' '}
-                                to{' '}
-                                <span className="font-medium">
-                                    {endIndexDisplay}
-                                </span>{' '}
-                                of{' '}
-                                <span className="font-medium">{totalItems}</span> results
-                            </div>
+                    {totalPages > 0 && (
+                        <div className="px-6 py-4 border-t border-[#60A5FB66]">
+                            <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+                                <div className="text-sm text-white">
+                                    Showing{' '}
+                                    <span className="font-medium">
+                                        {totalItems === 0 ? 0 : startIndexDisplay + 1}
+                                    </span>{' '}
+                                    to{' '}
+                                    <span className="font-medium">
+                                        {endIndexDisplay}
+                                    </span>{' '}
+                                    of{' '}
+                                    <span className="font-medium">{totalItems}</span> users
+                                </div>
 
-                            <div className="flex items-center space-x-3">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1 || loading}
-                                    className={`w-10 h-10 font-bold text-sm rounded transition-colors cursor-pointer ${currentPage === 1 || loading
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                >
-                                    <ChevronLeft size={24} color='black' className='font-bold mx-auto' />
-                                </button>
-
-                                {getPageNumbers().map((page) => (
+                                <div className="flex items-center space-x-2">
                                     <button
-                                        key={page}
-                                        onClick={() => handlePageChange(page)}
-                                        disabled={loading}
-                                        className={`w-10 h-10 font-bold text-sm rounded transition-colors cursor-pointer ${currentPage === page
-                                            ? 'bg-[#60A5FB] text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        onClick={() => handlePageChange(currentPage - 1)}
+                                        disabled={currentPage === 1 || loading}
+                                        className={`w-10 h-10 font-bold text-sm rounded transition-colors cursor-pointer flex items-center justify-center ${currentPage === 1 || loading
+                                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                            : 'bg-[#60A5FB29] text-white hover:bg-[#60A5FB40]'
+                                            }`}
                                     >
-                                        {page}
+                                        <ChevronLeft size={20} className='font-bold' />
                                     </button>
-                                ))}
 
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages || totalPages === 0 || loading}
-                                    className={`w-10 h-10 font-bold cursor-pointer text-sm rounded transition-colors ${currentPage === totalPages || totalPages === 0 || loading
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                        }`}
-                                >
-                                    <ChevronRight size={24} color='black' className='font-bold mx-auto' />
-                                </button>
+                                    {getPageNumbers().map((page) => (
+                                        <button
+                                            key={page}
+                                            onClick={() => handlePageChange(page)}
+                                            disabled={loading}
+                                            className={`w-10 h-10 font-bold text-sm rounded transition-colors cursor-pointer ${currentPage === page
+                                                ? 'bg-[#60A5FB] text-white'
+                                                : 'bg-[#60A5FB29] text-white hover:bg-[#60A5FB40]'
+                                                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+
+                                    <button
+                                        onClick={() => handlePageChange(currentPage + 1)}
+                                        disabled={currentPage === totalPages || totalPages === 0 || loading}
+                                        className={`w-10 h-10 font-bold cursor-pointer text-sm rounded transition-colors flex items-center justify-center ${currentPage === totalPages || totalPages === 0 || loading
+                                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                            : 'bg-[#60A5FB29] text-white hover:bg-[#60A5FB40]'
+                                            }`}
+                                    >
+                                        <ChevronRight size={20} className='font-bold' />
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
             {/* View User Modal */}
             {showViewModal && selectedUser && (
-                <div className="fixed inset-0 bg-black/85 bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#000000] rounded-lg w-full max-w-md border border-[#4b4b4b]">
-                        <div className="flex justify-between items-center p-6 ">
+                <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#1A2028] rounded-lg w-full max-w-md border border-[#60A5FB] max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center p-6 border-b border-[#60A5FB66]">
                             <h3 className="text-lg font-semibold text-white">User Details</h3>
                             <button
                                 onClick={closeModals}
@@ -473,47 +515,82 @@ export default function UserManagement() {
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            {/* <div className="flex items-center gap-4">
-                                <Image
-                                    src={userImage}
-                                    alt={selectedUser.Fullname}
-                                    width={80}
-                                    height={80}
-                                    className='w-20 h-20 object-fill rounded'
-                                />
-                                <div>
-                                    <h4 className="text-white font-semibold text-lg">{selectedUser.Fullname}</h4>
-                                    <p className="text-gray-400">User ID: {selectedUser.id}</p>
-                                </div>
-                            </div> */}
-
-                            <p className="text-white"><span className='font-bold text-gray-400'>User ID:</span> {selectedUser.id}</p>
-                            <p className="text-white"><span className='font-bold text-gray-400'>Full name:</span> Savannah Nguyen</p>
-                            <p className="text-white"><span className='font-bold text-gray-400'>Phone number:</span> (207) 555-0119</p>
-                            <p className="text-white"><span className='font-bold text-gray-400'>Registration Date:</span> January 20, 2025</p>
-                            <p className="text-white"><span className='font-bold text-gray-400'>Amount:</span> $69.99</p>
-                            <p className="text-white"><span className='font-bold text-gray-400'>Subscriptions:</span> Monthly</p>
-
-                            {/* <div className="space-y-3">
-                                <div>
-                                    <label className="text-gray-400 text-sm">Full name</label>
-                                    <p className="text-white">{selectedUser.Fullname}</p>
-                                </div>
-                                <div>
-                                    <label className="text-gray-400 text-sm">Phone number</label>
-                                    <p className="text-white">{selectedUser.phone_number}</p>
-                                </div>
-                                <div>
-                                    <label className="text-gray-400 text-sm">Registration Date</label>
-                                    <p className="text-white">{formatDate(selectedUser.date_joined)}</p>
-                                </div>
-                                <div>
-                                    <label className="text-gray-400 text-sm">Subscriptions</label>
-                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded`}>
-                                        {selectedUser.subscription}
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-20 h-20 bg-[#60A5FB29] rounded-full flex items-center justify-center">
+                                    <span className="text-white text-2xl font-bold">
+                                        {selectedUser.name?.charAt(0)?.toUpperCase() || 'U'}
                                     </span>
                                 </div>
-                            </div> */}
+                                <div>
+                                    <h4 className="text-white font-semibold text-xl">{selectedUser.name}</h4>
+                                    <p className="text-gray-400 text-sm">ID: {selectedUser.id}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-gray-400 text-sm">User ID</label>
+                                        <p className="text-white font-medium">{selectedUser.id}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-gray-400 text-sm">Status</label>
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${selectedUser.is_active
+                                                ? 'bg-green-500/20 text-green-300'
+                                                : 'bg-red-500/20 text-red-300'
+                                            }`}>
+                                            {selectedUser.is_active ? 'Active' : 'Inactive'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-gray-400 text-sm">Phone Number</label>
+                                    <p className="text-white">{selectedUser.phone_number}</p>
+                                </div>
+
+                                <div>
+                                    <label className="text-gray-400 text-sm">Registration Date</label>
+                                    <p className="text-white">{formatDateTime(selectedUser.date_joined)}</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-gray-400 text-sm">Subscription Plan</label>
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${getSubscriptionColor(selectedUser.current_plan)}`}>
+                                            {formatPlanName(selectedUser.current_plan)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label className="text-gray-400 text-sm">Scans Count</label>
+                                        <p className="text-white font-medium">{selectedUser.scans_count || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-[#60A5FB66]">
+                            <div className="flex space-x-3">
+                                <button
+                                    onClick={() => handleToggleBlock(selectedUser.id, selectedUser.is_active)}
+                                    disabled={actionLoading === selectedUser.id}
+                                    className={`flex-1 py-2 rounded font-medium transition-colors ${selectedUser.is_active
+                                        ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+                                        : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                >
+                                    {actionLoading === selectedUser.id ? 'Processing...' : 
+                                     selectedUser.is_active ? 'Block User' : 'Unblock User'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowViewModal(false);
+                                        handleRemoveClick(selectedUser.id);
+                                    }}
+                                    className="flex-1 bg-[#551214] text-[#FE4D4F] py-2 rounded font-medium transition-colors hover:bg-[#55121480]"
+                                >
+                                    Remove User
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -521,36 +598,34 @@ export default function UserManagement() {
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
-                <div className="fixed inset-0 bg-black/85 bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="relative bg-[#000000] rounded-lg w-full max-w-md border border-[#4b4b4b]">
+                <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
+                    <div className="relative bg-[#1A2028] rounded-lg w-full max-w-md border border-[#60A5FB]">
                         <button
                             onClick={closeModals}
                             className="text-gray-400 hover:text-white absolute right-4 top-4 cursor-pointer"
                         >
                             <X size={24} />
                         </button>
-                        <div className='text-center p-5 pb-0'>
-                            <CircleQuestionMark size={100} color='#FE4D4F' className='mx-auto rounded-full' />
-                        </div>
-                        <div className="p-6 pb-0">
-                            <h3 className="text-lg font-semibold text-white text-center">Remove this Account?</h3>
-                        </div>
-                        <div className="p-6">
-                            <p className="text-white mb-4 text-center border-b border-[#D8D9E0] pb-2">
-                                Once Delete, this user will permanently remove from the system
+                        <div className='text-center p-6'>
+                            <CircleQuestionMark size={80} color='#FE4D4F' className='mx-auto mb-4' />
+                            <h3 className="text-lg font-semibold text-white mb-2">Remove this Account?</h3>
+                            <p className="text-white mb-4">
+                                Once deleted, this user will be permanently removed from the system
                             </p>
-                            <p className="mb-6 text-center">What would you like to do next?</p>
-                            <div className="flex justify-center space-x-3">
+                            <p className="text-gray-400 mb-6 text-sm">
+                                This action cannot be undone. Are you sure you want to proceed?
+                            </p>
+                            <div className="flex space-x-3">
                                 <button
                                     onClick={closeModals}
-                                    className="px-6 py-2 w-full text-[#60A5FB] border border-[#60A5FB] rounded-lg hover:bg-gray-700 transition-colors cursor-pointer"
+                                    className="flex-1 px-4 py-2 text-[#60A5FB] border border-[#60A5FB] rounded-lg hover:bg-[#60A5FB10] transition-colors cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={() => userToDelete && handleRemove(userToDelete)}
                                     disabled={actionLoading !== null}
-                                    className="bg-[#FE4D4F] w-full text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    className="flex-1 bg-[#FE4D4F] text-white px-4 py-2 rounded-lg font-medium transition-colors hover:bg-[#FE4D4F]/80 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     {actionLoading ? 'Removing...' : 'Remove'}
                                 </button>
