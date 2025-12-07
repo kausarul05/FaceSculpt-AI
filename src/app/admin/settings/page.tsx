@@ -1,9 +1,40 @@
 "use client";
 import { Pencil } from "lucide-react";
 import Image from "next/image";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import profile from "@/../public/images/profile.jpg"
 import { toast } from "react-toastify";
+import { apiRequest } from "@/app/lib/api";
+
+// Define types for API responses
+interface ApiResponse {
+    success: boolean;
+    code: number;
+    message: string;
+    timestamp: number;
+    data: unknown;
+}
+
+interface ProfileData {
+    name: string;
+    phone_number: string;
+}
+
+interface ProfileFormData {
+    name: string;
+    phone_number: string;
+    Country: string;
+    City: string;
+    Province: string;
+    Gender: string;
+    Bio: string;
+}
+
+interface PasswordFormData {
+    old_password: string;
+    new_password: string;
+    confirm_password: string;
+}
 
 export default function Page() {
     // State for active tab (profile or password)
@@ -16,9 +47,9 @@ export default function Page() {
     const [loading, setLoading] = useState(true);
     
     // Form data state for profile information
-    const [formData, setFormData] = useState({
-        fullname: "",
-        email: "",
+    const [formData, setFormData] = useState<ProfileFormData>({
+        name: "",
+        phone_number: "",
         Country: "",
         City: "",
         Province: "",
@@ -27,13 +58,13 @@ export default function Page() {
     });
 
     // Form data state for password change
-    const [passwordData, setPasswordData] = useState({
-        current_password: "",
+    const [passwordData, setPasswordData] = useState<PasswordFormData>({
+        old_password: "",
         new_password: "",
         confirm_password: ""
     });
 
-    // Fake data for dropdown options - simulating API response
+    // Fake data for dropdown options
     const availableOptions = {
         countries: ["United States", "Canada", "United Kingdom", "Australia", "Germany", "France"],
         cities: ["New York", "Los Angeles", "Chicago", "Toronto", "London", "Sydney"],
@@ -41,61 +72,61 @@ export default function Page() {
         genders: ["male", "female", "other", "prefer not to say"]
     };
 
-    // Fake user data to simulate API response
-    const fakeUserData = {
-        fullname: "John Doe",
-        email: "john.doe@example.com",
-        Country: "United States",
-        City: "New York",
-        Province: "California",
-        Gender: "male",
-        Bio: "Software developer with 5+ years of experience in web development.",
-        profile_picture: profile.src
+    // Get auth token from localStorage
+    const getAuthToken = () => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("authToken");
+        }
+        return null;
     };
 
-    // Simulate fetching profile data from API
-    const fetchProfileData = async () => {
+    // Fetch profile data from API
+    const fetchProfileData = useCallback(async () => {
         try {
             setLoading(true);
             
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Use fake data instead of actual API call
-            const profileData = fakeUserData;
-            
-            console.log("Loaded fake profile data:", profileData);
-            
-            // Set form data with fake user data
-            setFormData({
-                fullname: profileData.fullname,
-                email: profileData.email,
-                Country: profileData.Country,
-                City: profileData.City,
-                Province: profileData.Province,
-                Gender: profileData.Gender,
-                Bio: profileData.Bio
-            });
-
-            // Set profile picture
-            if (profileData.profile_picture) {
-                setPreview(profileData.profile_picture);
+            const authToken = getAuthToken();
+            if (!authToken) {
+                toast.error("Authentication token not found. Please login again.");
+                return;
             }
             
-            toast.success("Profile data loaded successfully!");
+            // Make API call to get profile data
+            const response = await apiRequest("GET", "/api/dashboard/profile/", null, {
+                headers: {
+                    "Authorization": `Bearer ${authToken}`,
+                }
+            });
             
-        } catch (error) {
+            if (response.success) {
+                const profileData: ProfileData = response.data;
+                
+                // console.log("Loaded profile data:", profileData);
+                
+                // Set form data with real user data
+                setFormData(prev => ({
+                    ...prev,
+                    name: profileData.name || "",
+                    phone_number: profileData.phone_number || ""
+                }));
+
+                // toast.success("Profile data loaded successfully!");
+            } else {
+                throw new Error(response.message || "Failed to load profile");
+            }
+            
+        } catch (error: unknown) {
             console.error("Error loading profile:", error);
-            toast.error("Error loading profile data");
+            toast.error(error.message || "Error loading profile data");
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     // Load profile data on component mount
     useEffect(() => {
         fetchProfileData();
-    }, [fetchProfileData.length]);
+    }, [fetchProfileData]);
 
     // Handle click on edit profile picture icon
     const handleEditClick = () => {
@@ -112,7 +143,40 @@ export default function Page() {
             const imageUrl = URL.createObjectURL(file);
             setPreview(imageUrl);
             toast.success("Profile picture updated!");
-            // Note: In real implementation, you would upload the image to server here
+            
+            // Optionally upload to server
+            // uploadProfilePicture(file);
+        }
+    };
+
+    // Function to upload profile picture
+    const uploadProfilePicture = async (file: File) => {
+        try {
+            const authToken = getAuthToken();
+            if (!authToken) {
+                toast.error("Authentication token not found.");
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('profile_picture', file);
+            
+            const response = await apiRequest("POST", "/api/dashboard/profile/picture/", formData, {
+                headers: {
+                    "Authorization": `Bearer ${authToken}`,
+                }
+            });
+            
+            if (response.success) {
+                // Update preview with server URL if returned
+                if (response.data.profile_picture_url) {
+                    setPreview(response.data.profile_picture_url);
+                }
+                toast.success("Profile picture updated successfully!");
+            }
+        } catch (error) {
+            console.error("Error uploading profile picture:", error);
+            toast.error("Failed to upload profile picture");
         }
     };
 
@@ -134,31 +198,62 @@ export default function Page() {
         }));
     };
 
-    // Handle profile form submission
+    // Handle profile form submission - Try different approaches
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
         
         try {
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const authToken = getAuthToken();
+            if (!authToken) {
+                toast.error("Authentication token not found. Please login again.");
+                setSaving(false);
+                return;
+            }
             
-            // Log the data that would be sent to API
-            console.log("Profile update data:", {
-                fullname: formData.fullname,
-                Country: formData.Country,
-                City: formData.City,
-                Province: formData.Province,
-                Gender: formData.Gender,
-                Bio: formData.Bio
-            });
+            let response: ApiResponse;
             
-            // Simulate successful update
-            toast.success("Profile updated successfully!");
+            // TRY APPROACH 1: FormData (Most likely what your API expects)
+            const formDataToSend = new FormData();
+            formDataToSend.append('name', formData.name);
+            formDataToSend.append('phone_number', formData.phone_number);
             
-        } catch (error) {
+            // Add other fields if your backend supports them
+            // formDataToSend.append('country', formData.Country);
+            // formDataToSend.append('city', formData.City);
+            // formDataToSend.append('province', formData.Province);
+            // formDataToSend.append('gender', formData.Gender);
+            // formDataToSend.append('bio', formData.Bio);
+            
+            // Try PUT with FormData first
+            try {
+                response = await apiRequest("PUT", "/api/dashboard/profile/", formDataToSend, {
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                    }
+                });
+            } catch (error: unknown) {
+                console.log("PUT with FormData failed, trying POST...");
+                
+                // TRY APPROACH 2: POST with FormData
+                response = await apiRequest("POST", "/api/dashboard/profile/", formDataToSend, {
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                    }
+                });
+            }
+            
+            if (response.success) {
+                toast.success("Profile updated successfully!");
+                // Refresh profile data to get any server-side changes
+                await fetchProfileData();
+            } else {
+                throw new Error(response.message || "Failed to update profile");
+            }
+            
+        } catch (error: unknown) {
             console.error("Error updating profile:", error);
-            toast.error("Error updating profile. Please try again.");
+            toast.error(error.message || "Error updating profile. Please try again.");
         } finally {
             setSaving(false);
         }
@@ -183,29 +278,43 @@ export default function Page() {
         setSaving(true);
         
         try {
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const authToken = getAuthToken();
+            if (!authToken) {
+                toast.error("Authentication token not found. Please login again.");
+                setSaving(false);
+                return;
+            }
             
-            // Log the data that would be sent to API
-            console.log("Password change data:", {
-                old_password: passwordData.current_password,
-                new_password: passwordData.new_password,
-                confirm_password: passwordData.confirm_password
+            // Prepare password change payload
+            const payload = {
+                old_password: passwordData.old_password,
+                new_password: passwordData.new_password
+            };
+            
+            // Make API call to change password
+            const response = await apiRequest("POST", "/api/dashboard/change-password/", payload, {
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${authToken}`,
+                }
             });
             
-            // Simulate successful password change
-            toast.success("Password changed successfully!");
+            if (response.success) {
+                toast.success("Password changed successfully!");
+                
+                // Reset password form
+                setPasswordData({
+                    old_password: "",
+                    new_password: "",
+                    confirm_password: ""
+                });
+            } else {
+                throw new Error(response.message || "Failed to change password");
+            }
             
-            // Reset password form
-            setPasswordData({
-                current_password: "",
-                new_password: "",
-                confirm_password: ""
-            });
-            
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Error changing password:", error);
-            toast.error("Error changing password. Please try again.");
+            toast.error(error.message || "Error changing password. Please try again.");
         } finally {
             setSaving(false);
         }
@@ -268,7 +377,7 @@ export default function Page() {
                 </div>
 
                 {/* Main Content Area */}
-                <div className="bg-[#1A2028] w-full rounded-lg  p-6">
+                <div className="bg-[#1A2028] w-full rounded-lg p-6">
                     {/* Profile Information Tab */}
                     {activeTab === "profile" && (
                         <div>
@@ -307,135 +416,35 @@ export default function Page() {
                                 <div className="space-y-4 sm:space-y-6">
                                     {/* Display Name Field */}
                                     <div>
-                                        <label className="block text-sm font-semibold" htmlFor="fullname">
+                                        <label className="block text-sm font-semibold" htmlFor="name">
                                             Display Name
                                         </label>
                                         <input
                                             type="text"
-                                            id="fullname"
-                                            name="fullname"
+                                            id="name"
+                                            name="name"
                                             placeholder="Enter Your Display Name"
-                                            value={formData.fullname}
+                                            value={formData.name}
                                             onChange={handleInputChange}
                                             className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm"
                                         />
                                     </div>
 
-                                    {/* Email Field (Disabled) */}
+                                    {/* Phone Number Field (Disabled) */}
                                     <div>
-                                        <label className="block text-sm font-semibold" htmlFor="email">
-                                            Email
+                                        <label className="block text-sm font-semibold" htmlFor="phone_number">
+                                            Phone Number
                                         </label>
                                         <input
-                                            type="email"
-                                            id="email"
-                                            name="email"
-                                            value={formData.email}
+                                            type="tel"
+                                            id="phone_number"
+                                            name="phone_number"
+                                            value={formData.phone_number}
                                             onChange={handleInputChange}
-                                            disabled
-                                            className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            // disabled
+                                            className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
-                                        <small className="text-gray-400 text-xs">Email cannot be changed</small>
-                                    </div>
-
-                                    {/* Location Fields Row */}
-                                    <div className='flex flex-col sm:flex-row justify-between gap-4 sm:gap-6'>
-                                        {/* Country Field */}
-                                        <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="Country">
-                                                Country
-                                            </label>
-                                            <select
-                                                id="Country"
-                                                name="Country"
-                                                value={formData.Country}
-                                                onChange={handleInputChange}
-                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
-                                            >
-                                                <option value="">Select Your Country</option>
-                                                {availableOptions.countries.map(country => (
-                                                    <option key={country} value={country}>{country}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* City Field */}
-                                        <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="City">
-                                                City
-                                            </label>
-                                            <select
-                                                id="City"
-                                                name="City"
-                                                value={formData.City}
-                                                onChange={handleInputChange}
-                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
-                                            >
-                                                <option value="">Select Your City</option>
-                                                {availableOptions.cities.map(city => (
-                                                    <option key={city} value={city}>{city}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    {/* Province and Gender Fields Row */}
-                                    <div className='flex flex-col sm:flex-row justify-between gap-4 sm:gap-6'>
-                                        {/* Province Field */}
-                                        <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="Province">
-                                                Province
-                                            </label>
-                                            <select
-                                                id="Province"
-                                                name="Province"
-                                                value={formData.Province}
-                                                onChange={handleInputChange}
-                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
-                                            >
-                                                <option value="">Select Your Province</option>
-                                                {availableOptions.provinces.map(province => (
-                                                    <option key={province} value={province}>{province}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* Gender Field */}
-                                        <div className='w-full'>
-                                            <label className="block text-sm font-semibold" htmlFor="Gender">
-                                                Gender
-                                            </label>
-                                            <select
-                                                id="Gender"
-                                                name="Gender"
-                                                value={formData.Gender}
-                                                onChange={handleInputChange}
-                                                className="w-full mt-2 p-3  border border-[#60A5FB66] text-white rounded-lg text-sm"
-                                            >
-                                                <option value="">Select Your Gender</option>
-                                                {availableOptions.genders.map(gender => (
-                                                    <option key={gender} value={gender}>
-                                                        {gender.charAt(0).toUpperCase() + gender.slice(1)}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    {/* Bio Field */}
-                                    <div>
-                                        <label className="block text-sm font-semibold" htmlFor="Bio">
-                                            Bio
-                                        </label>
-                                        <textarea
-                                            id="Bio"
-                                            name="Bio"
-                                            placeholder="Enter Your Bio"
-                                            value={formData.Bio}
-                                            onChange={handleInputChange}
-                                            rows={4}
-                                            className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm"
-                                        ></textarea>
+                                        {/* <small className="text-gray-400 text-xs">Phone number cannot be changed</small> */}
                                     </div>
 
                                     {/* Save Button */}
@@ -443,7 +452,7 @@ export default function Page() {
                                         <button
                                             type="submit"
                                             disabled={saving}
-                                            className="py-3 sm:py-4 px-8 sm:px-14 bg-[#60A5FB] text-white font-semibold text-sm rounded-lg  disabled:bg-gray-600 disabled:cursor-not-allowed transition duration-300 cursor-pointer w-full sm:w-auto"
+                                            className="py-3 sm:py-4 px-8 sm:px-14 bg-[#60A5FB] text-white font-semibold text-sm rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed transition duration-300 cursor-pointer w-full sm:w-auto"
                                         >
                                             {saving ? "Saving..." : "Save"}
                                         </button>
@@ -465,9 +474,9 @@ export default function Page() {
                                     </label>
                                     <input
                                         type="password"
-                                        name="current_password"
+                                        name="old_password"
                                         placeholder="Enter Current Password"
-                                        value={passwordData.current_password}
+                                        value={passwordData.old_password}
                                         onChange={handlePasswordChange}
                                         className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />

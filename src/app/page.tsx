@@ -104,7 +104,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 name="phone_number"
-                placeholder="Enter your phone number (e.g., 8801708050645)"
+                placeholder="Enter your phone number"
                 value={formData.phone_number}
                 onChange={handleInputChange}
                 onKeyPress={handleKeyPress}

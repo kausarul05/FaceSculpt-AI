@@ -17,7 +17,7 @@ interface User {
     name: string;
     phone: string;
     registrationDate: string;
-    subscription: string;
+    current_plan: string;
     Fullname?: string;
     date_joined: string;
     is_active: boolean;
@@ -34,7 +34,35 @@ interface DashboardStats {
         total_earnings: number;
         total_scans: number;
     };
-    graph_data: any[];
+    graph_data: Array<{
+        month?: string;
+        date?: string;
+        label?: string;
+        revenue?: number;
+        earnings?: number;
+        value?: number;
+    }>;
+}
+
+interface ApiResponse<T> {
+    success: boolean;
+    data?: T;
+    message?: string;
+}
+
+interface UsersApiResponse {
+    success: boolean;
+    data?: {
+        results?: User[];
+        users?: User[];
+        total?: number;
+        count?: number;
+        total_pages?: number;
+    };
+    results?: User[];
+    total?: number;
+    count?: number;
+    total_pages?: number;
 }
 
 interface CustomTooltipProps extends TooltipProps<number, string> {
@@ -72,7 +100,7 @@ export default function Dashboard() {
         {
             title: 'Total Earning',
             value: `$${totalEarnings}`,
-            icon: <DollarSign size={24} color='#0ABF9D' className='font-bold'/>
+            icon: <DollarSign size={24} color='#0ABF9D' className='font-bold' />
         },
     ];
 
@@ -81,8 +109,8 @@ export default function Dashboard() {
         try {
             setLoading(true);
 
-            // Fetch dashboard stats
-            const statsResponse = await apiRequest(
+            // Fetch dashboard stats with proper typing
+            const statsResponse = await apiRequest<ApiResponse<DashboardStats>>(
                 "GET",
                 "/api/dashboard/stats/",
                 null,
@@ -95,27 +123,33 @@ export default function Dashboard() {
 
             console.log("Dashboard stats response:", statsResponse);
 
-            if (statsResponse.success && statsResponse.data) {
+            if (statsResponse?.success && statsResponse.data) {
                 const { cards, graph_data } = statsResponse.data;
-                
-                // Set total users
-                if (cards.total_users !== undefined) {
+
+                // Set total users with fallback
+                if (cards?.total_users !== undefined) {
                     setTotalUsers(cards.total_users.toLocaleString());
+                } else {
+                    setTotalUsers('0');
                 }
-                
-                // Set total earnings
-                if (cards.total_earnings !== undefined) {
+
+                // Set total earnings with fallback
+                if (cards?.total_earnings !== undefined) {
                     setTotalEarnings(cards.total_earnings.toFixed(2));
+                } else {
+                    setTotalEarnings('0.00');
                 }
-                
-                // Set total scans
-                if (cards.total_scans !== undefined) {
+
+                // Set total scans with fallback
+                if (cards?.total_scans !== undefined) {
                     setTotalScans(cards.total_scans.toLocaleString());
+                } else {
+                    setTotalScans('0');
                 }
-                
+
                 // Set chart data if available
                 if (graph_data && graph_data.length > 0) {
-                    const formattedChartData: ChartData[] = graph_data.map((item: any) => ({
+                    const formattedChartData: ChartData[] = graph_data.map((item) => ({
                         month: item.month || item.date || item.label || 'N/A',
                         revenue: item.revenue || item.earnings || item.value || 0
                     }));
@@ -124,22 +158,39 @@ export default function Dashboard() {
                     // If no graph data, show empty chart
                     setChartData([]);
                 }
-                
+
                 // Calculate growth percentage if we have historical data
                 if (graph_data && graph_data.length >= 2) {
                     const currentMonth = graph_data[graph_data.length - 1]?.revenue || 0;
                     const previousMonth = graph_data[graph_data.length - 2]?.revenue || 0;
-                    
+
                     if (previousMonth > 0) {
                         const growth = ((currentMonth - previousMonth) / previousMonth) * 100;
                         setGrowthPercentage(parseFloat(growth.toFixed(1)));
+                    } else {
+                        setGrowthPercentage(0);
                     }
+                } else {
+                    setGrowthPercentage(0);
                 }
+            } else {
+                console.error("Invalid dashboard response or no data");
+                // Set default values
+                setTotalUsers('0');
+                setTotalEarnings('0.00');
+                setTotalScans('0');
+                setChartData([]);
+                setGrowthPercentage(0);
             }
 
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
-            // You might want to show an error message to the user
+            // Set default values on error
+            setTotalUsers('0');
+            setTotalEarnings('0.00');
+            setTotalScans('0');
+            setChartData([]);
+            setGrowthPercentage(0);
         } finally {
             setLoading(false);
         }
@@ -149,15 +200,12 @@ export default function Dashboard() {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            
+
             // Build query parameters
             const endpoint = `/api/dashboard/users/?page=1&page_size=5`;
-            
-            // Note: You'll need to adjust this endpoint based on your actual API
-            // If you don't have a users endpoint in dashboard, use your accounts endpoint
-            // endpoint = `/accounts/user_all/?page=1&page_size=5`;
 
-            const data = await apiRequest("GET", endpoint, null, {
+            // Fetch users with proper typing
+            const data = await apiRequest<UsersApiResponse>("GET", endpoint, null, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`
                 }
@@ -165,10 +213,11 @@ export default function Dashboard() {
 
             console.log("Users response:", data);
 
-            if (data.success && data.data) {
-                // Adjust based on your actual API response structure
-                const usersData = data.data.results || data.data.users || data.data;
-                
+            // Handle different response structures
+            if (data?.success && data.data) {
+                // Structure: { success: true, data: { results: [], ... } }
+                const usersData = data.data.results || data.data.users || [];
+
                 if (Array.isArray(usersData)) {
                     const formattedUsers: User[] = usersData.map((user: any, index: number) => ({
                         id: user.id || index + 1,
@@ -177,28 +226,49 @@ export default function Dashboard() {
                         phone: user.phone || user.phone_number || user.mobile || 'N/A',
                         registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
                         date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
-                        subscription: user.subscription || user.plan || 'Free',
+                        current_plan: user.current_plan || user.plan || 'Free',
                         is_active: user.is_active !== false
                     }));
                     setUsers(formattedUsers);
                     setTotalItems(data.data.total || data.data.count || formattedUsers.length);
                     setTotalPages(data.data.total_pages || 1);
                 }
-            } else if (data.results) {
-                // Alternative response structure
-                const formattedUsers: User[] = data.results.map((user: any, index: number) => ({
+            } else if (data?.results && Array.isArray(data.results)) {
+                // Alternative structure: { results: [], total: X, ... }
+                const usersData = data.results;
+                const formattedUsers: User[] = usersData.map((user: any, index: number) => ({
                     id: user.id || index + 1,
                     name: user.name || user.username || user.Fullname || 'Unknown User',
                     Fullname: user.Fullname || user.name || user.username || 'Unknown User',
                     phone: user.phone || user.phone_number || user.mobile || 'N/A',
                     registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
                     date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
-                    subscription: user.subscription || user.plan || 'Free',
+                    current_plan: user.current_plan || user.plan || 'Free',
                     is_active: user.is_active !== false
                 }));
                 setUsers(formattedUsers);
                 setTotalItems(data.total || data.count || formattedUsers.length);
                 setTotalPages(data.total_pages || 1);
+            } else if (Array.isArray(data)) {
+                // Direct array response
+                const formattedUsers: User[] = data.map((user: any, index: number) => ({
+                    id: user.id || index + 1,
+                    name: user.name || user.username || user.Fullname || 'Unknown User',
+                    Fullname: user.Fullname || user.name || user.username || 'Unknown User',
+                    phone: user.phone || user.phone_number || user.mobile || 'N/A',
+                    registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
+                    date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
+                    current_plan: user.current_plan || user.plan || 'Free',
+                    is_active: user.is_active !== false
+                }));
+                setUsers(formattedUsers);
+                setTotalItems(formattedUsers.length);
+                setTotalPages(1);
+            } else {
+                console.error("Unexpected users response structure:", data);
+                setUsers([]);
+                setTotalItems(0);
+                setTotalPages(0);
             }
 
         } catch (error) {
@@ -236,12 +306,12 @@ export default function Dashboard() {
             await fetchDashboardData();
             await fetchUsers();
         };
-        
+
         loadData();
-        
+
         // Optional: Refresh data every 5 minutes
         const interval = setInterval(loadData, 5 * 60 * 1000);
-        
+
         return () => clearInterval(interval);
     }, []);
 
@@ -391,16 +461,15 @@ export default function Dashboard() {
                                                     {formatDate(user.date_joined)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                                                        user.subscription?.toLowerCase().includes('free')
-                                                            ? 'bg-gray-500/20 text-gray-300 border border-gray-500'
-                                                            : user.subscription?.toLowerCase().includes('monthly')
+                                                    <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${user.current_plan?.toLowerCase().includes('free')
+                                                        ? 'bg-gray-500/20 text-gray-300 border border-gray-500'
+                                                        : user.current_plan?.toLowerCase().includes('monthly')
                                                             ? 'bg-blue-500/20 text-blue-300 border border-blue-500'
-                                                            : user.subscription?.toLowerCase().includes('6 month') || user.subscription?.toLowerCase().includes('yearly')
-                                                            ? 'bg-green-500/20 text-green-300 border border-green-500'
-                                                            : 'bg-purple-500/20 text-purple-300 border border-purple-500'
-                                                    }`}>
-                                                        {user.subscription}
+                                                            : user.current_plan?.toLowerCase().includes('6 month') || user.current_plan?.toLowerCase().includes('yearly')
+                                                                ? 'bg-green-500/20 text-green-300 border border-green-500'
+                                                                : 'bg-purple-500/20 text-purple-300 border border-purple-500'
+                                                        }`}>
+                                                        {user.current_plan}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -416,7 +485,7 @@ export default function Dashboard() {
                             </table>
                         </div>
                     </div>
-                    
+
                     {/* Pagination - Optional */}
                     {totalPages > 1 && (
                         <div className="flex justify-center items-center mt-6 space-x-2">

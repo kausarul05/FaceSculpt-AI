@@ -5,7 +5,7 @@ import {
     History,
     Settings
 } from "lucide-react";
-import React, { useState } from 'react'
+import React from 'react'
 import logo from "@/../public/images/logo.png"
 import Image from "next/image";
 import Link from "next/link";

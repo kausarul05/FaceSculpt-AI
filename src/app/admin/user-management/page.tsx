@@ -66,7 +66,7 @@ export default function UserManagement() {
 
             if (data.success && data.data) {
                 // Map API response to our User interface
-                const formattedUsers: User[] = data.data.results.map((user: any) => ({
+                const formattedUsers: User[] = data.data.results.map((user: unknown) => ({
                     id: user.id,
                     name: user.name,
                     phone_number: user.phone_number,
@@ -86,7 +86,7 @@ export default function UserManagement() {
                 setTotalItems(0);
                 setTotalPages(0);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to fetch users:', error);
             toast.error(error.message || 'Failed to fetch users');
             setUsers([]);
@@ -123,7 +123,7 @@ export default function UserManagement() {
             } else {
                 toast.error(response.message || 'Failed to remove user');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to remove user:', error);
             toast.error(error.message || 'Failed to remove user');
         } finally {
@@ -159,7 +159,7 @@ export default function UserManagement() {
             } else {
                 toast.error(response.message || `Failed to ${currentStatus ? 'block' : 'unblock'} user`);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to toggle block status:', error);
             toast.error(error.message || 'Failed to update user status');
         } finally {
@@ -365,19 +365,7 @@ export default function UserManagement() {
                                                 {startIndexDisplay + index + 1}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                                                <div className='flex items-center gap-3'>
-                                                    <div className="w-10 h-10 bg-[#60A5FB29] rounded-full flex items-center justify-center">
-                                                        <span className="text-white font-medium">
-                                                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                                                        </span>
-                                                    </div>
-                                                    <div>
-                                                        <div>{user.name}</div>
-                                                        <div className="text-xs text-gray-400">
-                                                            ID: {user.id}
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                {user.name}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-[#F9FAFB]">
                                                 {user.phone_number}
@@ -405,25 +393,6 @@ export default function UserManagement() {
                                                         className="bg-[#60A5FB29] px-3 py-1 text-[#60A5FB] rounded cursor-pointer font-medium transition-colors hover:bg-[#60A5FB40] flex items-center gap-1 text-sm"
                                                     >
                                                         View
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleToggleBlock(user.id, user.is_active)}
-                                                        disabled={actionLoading === user.id}
-                                                        className={`px-3 py-1 rounded cursor-pointer font-medium transition-colors text-sm flex items-center gap-1 ${user.is_active
-                                                            ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                                                            : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                    >
-                                                        {actionLoading === user.id ? (
-                                                            <>
-                                                                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current"></div>
-                                                                Processing...
-                                                            </>
-                                                        ) : user.is_active ? (
-                                                            'Block'
-                                                        ) : (
-                                                            'Unblock'
-                                                        )}
                                                     </button>
                                                     <button
                                                         onClick={() => handleRemoveClick(user.id)}
@@ -570,17 +539,7 @@ export default function UserManagement() {
                         </div>
                         <div className="p-6 border-t border-[#60A5FB66]">
                             <div className="flex space-x-3">
-                                <button
-                                    onClick={() => handleToggleBlock(selectedUser.id, selectedUser.is_active)}
-                                    disabled={actionLoading === selectedUser.id}
-                                    className={`flex-1 py-2 rounded font-medium transition-colors ${selectedUser.is_active
-                                        ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
-                                        : 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                >
-                                    {actionLoading === selectedUser.id ? 'Processing...' : 
-                                     selectedUser.is_active ? 'Block User' : 'Unblock User'}
-                                </button>
+                                
                                 <button
                                     onClick={() => {
                                         setShowViewModal(false);
