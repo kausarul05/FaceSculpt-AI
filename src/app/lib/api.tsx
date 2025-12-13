@@ -36,7 +36,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, Method, InternalAxiosRequestConfig } from 'axios';
 
 // Base API URL
-const BASE_API = "https://b6e58d243c60.ngrok-free.app";
+const BASE_API = "https://server.facesculptai.com";
 
 // Define generic API response type
 export interface ApiResponse<T = unknown> {
