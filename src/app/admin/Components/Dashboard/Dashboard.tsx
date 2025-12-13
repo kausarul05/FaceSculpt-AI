@@ -28,20 +28,32 @@ interface ChartData {
     revenue: number;
 }
 
-interface DashboardStats {
-    cards: {
-        total_users: number;
-        total_earnings: number;
-        total_scans: number;
+interface DashboardCards {
+    total_users?: number;
+    total_earnings?: number;
+    total_scans?: number;
+    totalUsers?: number;
+    totalEarnings?: number;
+    totalScans?: number;
+}
+
+interface DashboardGraphData {
+    month?: string;
+    date?: string;
+    label?: string;
+    revenue?: number;
+    earnings?: number;
+    value?: number;
+}
+
+interface DashboardStatsData {
+    cards?: DashboardCards;
+    graph_data?: DashboardGraphData[];
+    data?: {
+        cards?: DashboardCards;
+        graph_data?: DashboardGraphData[];
     };
-    graph_data: Array<{
-        month?: string;
-        date?: string;
-        label?: string;
-        revenue?: number;
-        earnings?: number;
-        value?: number;
-    }>;
+    [key: string]: unknown; // Allow other properties
 }
 
 interface ApiResponse<T> {
@@ -55,14 +67,18 @@ interface UsersApiResponse {
     data?: {
         results?: User[];
         users?: User[];
+        data?: User[];
         total?: number;
         count?: number;
         total_pages?: number;
+        [key: string]: unknown; // Allow other properties
     };
     results?: User[];
+    users?: User[];
     total?: number;
     count?: number;
     total_pages?: number;
+    [key: string]: unknown; // Allow other properties
 }
 
 interface CustomTooltipProps extends TooltipProps<number, string> {
@@ -72,6 +88,120 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
         payload: ChartData;
     }>;
     label?: string;
+}
+
+// Define user data interface for API responses
+interface ApiUser {
+    id?: number;
+    name?: string;
+    username?: string;
+    Fullname?: string;
+    phone?: string;
+    phone_number?: string;
+    mobile?: string;
+    created_at?: string;
+    date_joined?: string;
+    registration_date?: string;
+    current_plan?: string;
+    plan?: string;
+    is_active?: boolean;
+    [key: string]: unknown; // Allow other properties
+}
+
+// Type guard functions
+function isDashboardCards(obj: unknown): obj is DashboardCards {
+    if (typeof obj !== 'object' || obj === null) return false;
+    const hasTotalUsers = 'total_users' in obj || 'totalUsers' in obj;
+    const hasTotalEarnings = 'total_earnings' in obj || 'totalEarnings' in obj;
+    const hasTotalScans = 'total_scans' in obj || 'totalScans' in obj;
+    return hasTotalUsers || hasTotalEarnings || hasTotalScans;
+}
+
+function isDashboardGraphDataArray(obj: unknown): obj is DashboardGraphData[] {
+    return Array.isArray(obj) && obj.every(item => 
+        typeof item === 'object' && 
+        item !== null &&
+        ('month' in item || 'date' in item || 'label' in item)
+    );
+}
+
+function hasCardsAndGraphData(obj: unknown): obj is { cards: DashboardCards; graph_data: DashboardGraphData[] } {
+    if (typeof obj !== 'object' || obj === null) return false;
+    const typedObj = obj as { cards?: unknown; graph_data?: unknown };
+    return typedObj.cards !== undefined && typedObj.graph_data !== undefined;
+}
+
+function hasNestedData(obj: unknown): obj is { data: { cards?: DashboardCards; graph_data?: DashboardGraphData[] } } {
+    if (typeof obj !== 'object' || obj === null) return false;
+    const typedObj = obj as { data?: unknown };
+    return typedObj.data !== undefined && typeof typedObj.data === 'object' && typedObj.data !== null;
+}
+
+// Helper function to extract users from various response structures
+function extractUsersFromResponse(data: unknown): ApiUser[] {
+    if (!data || typeof data !== 'object') return [];
+    
+    const dataObj = data as Record<string, unknown>;
+    
+    // Check for direct array
+    if (Array.isArray(dataObj)) {
+        return dataObj as ApiUser[];
+    }
+    
+    // Check for success response with data property
+    if ('success' in dataObj && dataObj.success && 'data' in dataObj && dataObj.data && typeof dataObj.data === 'object') {
+        const innerData = dataObj.data as Record<string, unknown>;
+        
+        // Try different array properties
+        if ('results' in innerData && Array.isArray(innerData.results)) {
+            return innerData.results as ApiUser[];
+        }
+        if ('users' in innerData && Array.isArray(innerData.users)) {
+            return innerData.users as ApiUser[];
+        }
+        if ('data' in innerData && Array.isArray(innerData.data)) {
+            return innerData.data as ApiUser[];
+        }
+    }
+    
+    // Check for direct properties
+    if ('results' in dataObj && Array.isArray(dataObj.results)) {
+        return dataObj.results as ApiUser[];
+    }
+    if ('users' in dataObj && Array.isArray(dataObj.users)) {
+        return dataObj.users as ApiUser[];
+    }
+    if ('data' in dataObj && Array.isArray(dataObj.data)) {
+        return dataObj.data as ApiUser[];
+    }
+    
+    return [];
+}
+
+// Helper function to extract pagination info
+function extractPaginationInfo(data: unknown): { total: number; total_pages: number } {
+    const defaultInfo = { total: 0, total_pages: 1 };
+    
+    if (!data || typeof data !== 'object') return defaultInfo;
+    
+    const dataObj = data as Record<string, unknown>;
+    
+    // Check for success response with data property
+    if ('success' in dataObj && dataObj.success && 'data' in dataObj && dataObj.data && typeof dataObj.data === 'object') {
+        const innerData = dataObj.data as Record<string, unknown>;
+        return {
+            total: typeof innerData.total === 'number' ? innerData.total : 
+                   typeof innerData.count === 'number' ? innerData.count : 0,
+            total_pages: typeof innerData.total_pages === 'number' ? innerData.total_pages : 1
+        };
+    }
+    
+    // Check for direct properties
+    return {
+        total: typeof dataObj.total === 'number' ? dataObj.total : 
+               typeof dataObj.count === 'number' ? dataObj.count : 0,
+        total_pages: typeof dataObj.total_pages === 'number' ? dataObj.total_pages : 1
+    };
 }
 
 export default function Dashboard() {
@@ -84,7 +214,6 @@ export default function Dashboard() {
     const [users, setUsers] = useState<User[]>([]);
     const [totalItems, setTotalItems] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const itemsPerPage = 10;
 
     const stats: StatItem[] = [
         {
@@ -110,7 +239,7 @@ export default function Dashboard() {
             setLoading(true);
 
             // Fetch dashboard stats with proper typing
-            const statsResponse = await apiRequest<ApiResponse<DashboardStats>>(
+            const statsResponse = await apiRequest<ApiResponse<DashboardStatsData>>(
                 "GET",
                 "/api/dashboard/stats/",
                 null,
@@ -124,53 +253,82 @@ export default function Dashboard() {
             console.log("Dashboard stats response:", statsResponse);
 
             if (statsResponse?.success && statsResponse.data) {
-                const { cards, graph_data } = statsResponse.data;
+                // Handle different possible response structures
+                let cardsData: DashboardCards | undefined;
+                let graphData: DashboardGraphData[] | undefined;
+
+                const responseData = statsResponse.data;
+
+                // Check the actual structure using type guards
+                if (hasCardsAndGraphData(responseData)) {
+                    // Case 1: Data has cards and graph_data directly
+                    cardsData = responseData.cards;
+                    graphData = responseData.graph_data;
+                } else if (hasNestedData(responseData)) {
+                    // Case 2: Data has a nested data object
+                    cardsData = responseData.data.cards;
+                    graphData = responseData.data.graph_data;
+                } else if (isDashboardCards(responseData)) {
+                    // Case 3: The entire response is the cards data
+                    cardsData = responseData;
+                }
 
                 // Set total users with fallback
-                if (cards?.total_users !== undefined) {
-                    setTotalUsers(cards.total_users.toLocaleString());
+                if (cardsData) {
+                    const usersValue = cardsData.total_users || cardsData.totalUsers;
+                    if (usersValue !== undefined) {
+                        setTotalUsers(usersValue.toLocaleString());
+                    } else {
+                        setTotalUsers('0');
+                    }
+
+                    // Set total earnings with fallback
+                    const earningsValue = cardsData.total_earnings || cardsData.totalEarnings;
+                    if (earningsValue !== undefined) {
+                        setTotalEarnings(earningsValue.toFixed(2));
+                    } else {
+                        setTotalEarnings('0.00');
+                    }
+
+                    // Set total scans with fallback
+                    const scansValue = cardsData.total_scans || cardsData.totalScans;
+                    if (scansValue !== undefined) {
+                        setTotalScans(scansValue.toLocaleString());
+                    } else {
+                        setTotalScans('0');
+                    }
                 } else {
+                    // No cards data found
                     setTotalUsers('0');
-                }
-
-                // Set total earnings with fallback
-                if (cards?.total_earnings !== undefined) {
-                    setTotalEarnings(cards.total_earnings.toFixed(2));
-                } else {
                     setTotalEarnings('0.00');
-                }
-
-                // Set total scans with fallback
-                if (cards?.total_scans !== undefined) {
-                    setTotalScans(cards.total_scans.toLocaleString());
-                } else {
                     setTotalScans('0');
                 }
 
                 // Set chart data if available
-                if (graph_data && graph_data.length > 0) {
-                    const formattedChartData: ChartData[] = graph_data.map((item) => ({
+                if (graphData && isDashboardGraphDataArray(graphData)) {
+                    const formattedChartData: ChartData[] = graphData.map((item) => ({
                         month: item.month || item.date || item.label || 'N/A',
                         revenue: item.revenue || item.earnings || item.value || 0
                     }));
                     setChartData(formattedChartData);
-                } else {
-                    // If no graph data, show empty chart
-                    setChartData([]);
-                }
 
-                // Calculate growth percentage if we have historical data
-                if (graph_data && graph_data.length >= 2) {
-                    const currentMonth = graph_data[graph_data.length - 1]?.revenue || 0;
-                    const previousMonth = graph_data[graph_data.length - 2]?.revenue || 0;
+                    // Calculate growth percentage if we have historical data
+                    if (formattedChartData.length >= 2) {
+                        const currentMonth = formattedChartData[formattedChartData.length - 1]?.revenue || 0;
+                        const previousMonth = formattedChartData[formattedChartData.length - 2]?.revenue || 0;
 
-                    if (previousMonth > 0) {
-                        const growth = ((currentMonth - previousMonth) / previousMonth) * 100;
-                        setGrowthPercentage(parseFloat(growth.toFixed(1)));
+                        if (previousMonth > 0) {
+                            const growth = ((currentMonth - previousMonth) / previousMonth) * 100;
+                            setGrowthPercentage(parseFloat(growth.toFixed(1)));
+                        } else {
+                            setGrowthPercentage(0);
+                        }
                     } else {
                         setGrowthPercentage(0);
                     }
                 } else {
+                    // If no graph data, show empty chart
+                    setChartData([]);
                     setGrowthPercentage(0);
                 }
             } else {
@@ -204,8 +362,8 @@ export default function Dashboard() {
             // Build query parameters
             const endpoint = `/api/dashboard/users/?page=1&page_size=5`;
 
-            // Fetch users with proper typing
-            const data = await apiRequest<UsersApiResponse>("GET", endpoint, null, {
+            // Fetch users - use unknown type since API response can vary
+            const data = await apiRequest<unknown>("GET", endpoint, null, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("authToken")}`
                 }
@@ -213,30 +371,14 @@ export default function Dashboard() {
 
             console.log("Users response:", data);
 
-            // Handle different response structures
-            if (data?.success && data.data) {
-                // Structure: { success: true, data: { results: [], ... } }
-                const usersData = data.data.results || data.data.users || [];
+            // Extract users from response using helper function
+            const usersData = extractUsersFromResponse(data);
+            
+            // Extract pagination info
+            const paginationInfo = extractPaginationInfo(data);
 
-                if (Array.isArray(usersData)) {
-                    const formattedUsers: User[] = usersData.map((user: any, index: number) => ({
-                        id: user.id || index + 1,
-                        name: user.name || user.username || user.Fullname || 'Unknown User',
-                        Fullname: user.Fullname || user.name || user.username || 'Unknown User',
-                        phone: user.phone || user.phone_number || user.mobile || 'N/A',
-                        registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
-                        date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
-                        current_plan: user.current_plan || user.plan || 'Free',
-                        is_active: user.is_active !== false
-                    }));
-                    setUsers(formattedUsers);
-                    setTotalItems(data.data.total || data.data.count || formattedUsers.length);
-                    setTotalPages(data.data.total_pages || 1);
-                }
-            } else if (data?.results && Array.isArray(data.results)) {
-                // Alternative structure: { results: [], total: X, ... }
-                const usersData = data.results;
-                const formattedUsers: User[] = usersData.map((user: any, index: number) => ({
+            if (Array.isArray(usersData)) {
+                const formattedUsers: User[] = usersData.map((user: ApiUser, index: number) => ({
                     id: user.id || index + 1,
                     name: user.name || user.username || user.Fullname || 'Unknown User',
                     Fullname: user.Fullname || user.name || user.username || 'Unknown User',
@@ -246,24 +388,10 @@ export default function Dashboard() {
                     current_plan: user.current_plan || user.plan || 'Free',
                     is_active: user.is_active !== false
                 }));
+                
                 setUsers(formattedUsers);
-                setTotalItems(data.total || data.count || formattedUsers.length);
-                setTotalPages(data.total_pages || 1);
-            } else if (Array.isArray(data)) {
-                // Direct array response
-                const formattedUsers: User[] = data.map((user: any, index: number) => ({
-                    id: user.id || index + 1,
-                    name: user.name || user.username || user.Fullname || 'Unknown User',
-                    Fullname: user.Fullname || user.name || user.username || 'Unknown User',
-                    phone: user.phone || user.phone_number || user.mobile || 'N/A',
-                    registrationDate: user.created_at || user.date_joined || user.registration_date || 'N/A',
-                    date_joined: user.date_joined || user.created_at || user.registration_date || 'N/A',
-                    current_plan: user.current_plan || user.plan || 'Free',
-                    is_active: user.is_active !== false
-                }));
-                setUsers(formattedUsers);
-                setTotalItems(formattedUsers.length);
-                setTotalPages(1);
+                setTotalItems(paginationInfo.total || formattedUsers.length);
+                setTotalPages(paginationInfo.total_pages || 1);
             } else {
                 console.error("Unexpected users response structure:", data);
                 setUsers([]);

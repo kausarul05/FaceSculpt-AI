@@ -2,9 +2,26 @@
 
 import { apiRequest } from '@/app/lib/api';
 import { ChevronLeft, ChevronRight, CircleQuestionMark, Search, X } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 
+// Interface for API user data (what comes from the API)
+interface ApiUser {
+    id?: number;
+    name?: string;
+    phone_number?: string;
+    phone?: string;
+    date_joined?: string;
+    created_at?: string;
+    is_active?: boolean;
+    current_plan?: string;
+    plan?: string;
+    scans_count?: number;
+    Fullname?: string;
+    [key: string]: unknown; // Allow other properties
+}
+
+// Our application's User interface
 interface User {
     id: number;
     name: string;
@@ -16,17 +33,37 @@ interface User {
     Fullname?: string;
 }
 
-interface ApiResponse {
+// Generic API response structure
+interface ApiResponse<T = unknown> {
     success: boolean;
     code: number;
     message: string;
     timestamp: number;
-    data: {
-        count: number;
-        next: string | null;
-        previous: string | null;
-        results: User[];
-    };
+    data: T;
+}
+
+// Specific type for users list response
+interface UsersListResponse {
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: ApiUser[]; // Changed from User[] to ApiUser[]
+}
+
+// Type guard to check if value is an ApiUser
+function isApiUser(obj: unknown): obj is ApiUser {
+    if (!obj || typeof obj !== 'object') return false;
+    return true; // Basic check - we'll validate properties in the mapping
+}
+
+// Type guard to check if value is UsersListResponse
+function isUsersListResponse(obj: unknown): obj is UsersListResponse {
+    if (!obj || typeof obj !== 'object') return false;
+    
+    const hasCount = 'count' in obj && typeof obj.count === 'number';
+    const hasResults = 'results' in obj && Array.isArray(obj.results);
+    
+    return hasCount && hasResults;
 }
 
 export default function UserManagement() {
@@ -44,7 +81,7 @@ export default function UserManagement() {
     const itemsPerPage = 10;
 
     // Fetch users from API
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         try {
             setLoading(true);
             
@@ -56,46 +93,71 @@ export default function UserManagement() {
                 endpoint += `&search=${encodeURIComponent(searchTerm)}`;
             }
 
-            const data: ApiResponse = await apiRequest("GET", endpoint, null, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("authToken")}`
+            const response = await apiRequest<ApiResponse<UsersListResponse>>(
+                "GET", 
+                endpoint, 
+                null, 
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
+                    }
                 }
-            });
+            );
 
-            console.log("Users API response:", data);
+            console.log("Users API response:", response);
 
-            if (data.success && data.data) {
-                // Map API response to our User interface
-                const formattedUsers: User[] = data.data.results.map((user: unknown) => ({
-                    id: user.id,
-                    name: user.name,
-                    phone_number: user.phone_number,
-                    date_joined: user.date_joined,
-                    is_active: user.is_active,
-                    current_plan: user.current_plan,
-                    scans_count: user.scans_count,
-                    Fullname: user.name // Using name as Fullname
-                }));
+            if (response.success && response.data && isUsersListResponse(response.data)) {
+                // Map API response to our User interface with proper typing
+                const formattedUsers: User[] = response.data.results.map((apiUser: ApiUser) => {
+                    // Validate and transform the API data
+                    if (!isApiUser(apiUser)) {
+                        // Return a default user if data is invalid
+                        return {
+                            id: 0,
+                            name: 'Unknown User',
+                            phone_number: 'N/A',
+                            date_joined: 'N/A',
+                            is_active: false,
+                            current_plan: 'Free',
+                            scans_count: 0,
+                            Fullname: 'Unknown User'
+                        };
+                    }
+
+                    return {
+                        id: apiUser.id || 0,
+                        name: apiUser.name || apiUser.Fullname || 'Unknown User',
+                        phone_number: apiUser.phone_number || apiUser.phone || 'N/A',
+                        date_joined: apiUser.date_joined || apiUser.created_at || 'N/A',
+                        is_active: apiUser.is_active !== false,
+                        current_plan: apiUser.current_plan || apiUser.plan || 'Free',
+                        scans_count: apiUser.scans_count || 0,
+                        Fullname: apiUser.Fullname || apiUser.name || 'Unknown User'
+                    };
+                });
                 
                 setUsers(formattedUsers);
-                setTotalItems(data.data.count);
-                setTotalPages(Math.ceil(data.data.count / itemsPerPage));
+                setTotalItems(response.data.count);
+                setTotalPages(Math.ceil(response.data.count / itemsPerPage));
             } else {
-                toast.error(data.message || 'Failed to fetch users');
+                // Handle case where data doesn't match expected structure
+                console.error("Invalid API response structure:", response.data);
+                toast.error(response.message || 'Failed to fetch users');
                 setUsers([]);
                 setTotalItems(0);
                 setTotalPages(0);
             }
         } catch (error: unknown) {
             console.error('Failed to fetch users:', error);
-            toast.error(error.message || 'Failed to fetch users');
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch users';
+            toast.error(errorMessage);
             setUsers([]);
             setTotalItems(0);
-                setTotalPages(0);
+            setTotalPages(0);
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage, searchTerm]);
 
     // Handle user removal (delete)
     const handleRemove = async (userId: number) => {
@@ -103,7 +165,7 @@ export default function UserManagement() {
             setActionLoading(userId);
             
             // Make API call to delete user
-            const response = await apiRequest(
+            const response = await apiRequest<ApiResponse>(
                 "DELETE", 
                 `/api/dashboard/users/${userId}/`, 
                 null,
@@ -125,45 +187,12 @@ export default function UserManagement() {
             }
         } catch (error: unknown) {
             console.error('Failed to remove user:', error);
-            toast.error(error.message || 'Failed to remove user');
+            const errorMessage = error instanceof Error ? error.message : 'Failed to remove user';
+            toast.error(errorMessage);
         } finally {
             setActionLoading(null);
             setShowDeleteModal(false);
             setUserToDelete(null);
-        }
-    };
-
-    // Handle user block/unblock
-    const handleToggleBlock = async (userId: number, currentStatus: boolean) => {
-        try {
-            setActionLoading(userId);
-            
-            const endpoint = `/api/dashboard/users/${userId}/block/`;
-            const response = await apiRequest(
-                "POST", 
-                endpoint, 
-                { is_active: !currentStatus },
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
-                    }
-                }
-            );
-
-            console.log("Block response:", response);
-
-            if (response.success) {
-                toast.success(`User ${currentStatus ? 'blocked' : 'unblocked'} successfully`);
-                // Refresh user list
-                await fetchUsers();
-            } else {
-                toast.error(response.message || `Failed to ${currentStatus ? 'block' : 'unblock'} user`);
-            }
-        } catch (error: unknown) {
-            console.error('Failed to toggle block status:', error);
-            toast.error(error.message || 'Failed to update user status');
-        } finally {
-            setActionLoading(null);
         }
     };
 
@@ -225,7 +254,7 @@ export default function UserManagement() {
         }, 500); // Debounce search by 500ms
 
         return () => clearTimeout(debounceTimer);
-    }, [currentPage, searchTerm]);
+    }, [currentPage, searchTerm, fetchUsers]);
 
     // Handle page change
     const handlePageChange = (page: number) => {

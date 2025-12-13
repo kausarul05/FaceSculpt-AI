@@ -11,6 +11,37 @@ type LoginFormData = {
   rememberMe: boolean;
 };
 
+// Define the expected API response structure
+interface LoginApiResponse {
+  success: boolean;
+  code: number;
+  message: string;
+  timestamp: number;
+  data?: {
+    token: string;
+    refresh_token: string;
+    admin_name: string;
+  };
+  token?: string;
+  refresh_token?: string;
+  admin_name?: string;
+}
+
+// Interface for token data
+interface TokenData {
+  token: string;
+  refresh_token: string;
+  admin_name: string;
+}
+
+// Helper function to safely get string value
+const getStringValue = (value: unknown, defaultValue: string = ""): string => {
+  if (typeof value === 'string') {
+    return value;
+  }
+  return defaultValue;
+};
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<LoginFormData>({
@@ -37,13 +68,6 @@ export default function LoginPage() {
       return;
     }
 
-    // Validate phone number format (example: 11 digits starting with 880)
-    // const phoneRegex = /^880\d{10}$/;
-    // if (!phoneRegex.test(formData.phone_number)) {
-    //   setError("Please enter a valid Bangladeshi phone number (e.g., 8801708050645)");
-    //   return;
-    // }
-
     setIsLoading(true);
     setError("");
 
@@ -52,14 +76,41 @@ export default function LoginPage() {
         phone_number: formData.phone_number,
         password: formData.password,
       };
-      const data = await apiRequest("POST", "/api/dashboard/login/", payload);
-
-      console.log("data", data)
       
-      if (data.data) {
-        localStorage.setItem("authToken", data?.data?.token);
-        localStorage.setItem("refreshToken", data?.data?.refresh_token);
-        localStorage.setItem("admin_name", data?.data?.admin_name);
+      // Use proper typing for the API response
+      const data = await apiRequest<LoginApiResponse>("POST", "/api/dashboard/login/", payload);
+
+      console.log("Login API response:", data);
+      
+      // Extract token data from response
+      let tokenData: TokenData | null = null;
+      
+      // Helper to check if token exists and is a string
+      const hasValidToken = (token: unknown): token is string => {
+        return typeof token === 'string' && token.length > 0;
+      };
+
+      if (data.data && hasValidToken(data.data.token)) {
+        // Case 1: Token data is nested in data property
+        tokenData = {
+          token: data.data.token,
+          refresh_token: getStringValue(data.data.refresh_token, ""),
+          admin_name: getStringValue(data.data.admin_name, "")
+        };
+      } else if (hasValidToken(data.token)) {
+        // Case 2: Token data is at root level
+        tokenData = {
+          token: data.token as string, // We know it's string from hasValidToken check
+          refresh_token: getStringValue(data.refresh_token, ""),
+          admin_name: getStringValue(data.admin_name, "")
+        };
+      }
+
+      if (tokenData) {
+        // Use fallback empty strings for optional properties
+        localStorage.setItem("authToken", tokenData.token);
+        localStorage.setItem("refreshToken", tokenData.refresh_token);
+        localStorage.setItem("admin_name", tokenData.admin_name);
         
         if (formData.rememberMe) {
           localStorage.setItem("rememberMe", "true");
@@ -75,7 +126,7 @@ export default function LoginPage() {
       const errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setError(errorMessage);
     } finally {
-      setIsLoading(false); // Uncomment when using real API
+      setIsLoading(false);
     }
   };
 

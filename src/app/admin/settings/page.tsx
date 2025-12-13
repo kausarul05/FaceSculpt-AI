@@ -7,17 +7,23 @@ import { toast } from "react-toastify";
 import { apiRequest } from "@/app/lib/api";
 
 // Define types for API responses
-interface ApiResponse {
+interface ApiResponse<T = unknown> {
     success: boolean;
     code: number;
     message: string;
     timestamp: number;
-    data: unknown;
+    data: T;
 }
 
 interface ProfileData {
     name: string;
     phone_number: string;
+    // Add other fields that might be returned from API
+    country?: string;
+    city?: string;
+    province?: string;
+    gender?: string;
+    bio?: string;
 }
 
 interface ProfileFormData {
@@ -34,6 +40,34 @@ interface PasswordFormData {
     old_password: string;
     new_password: string;
     confirm_password: string;
+}
+
+// Interface for profile picture response
+interface ProfilePictureResponse {
+    profile_picture_url: string;
+}
+
+// Interface for generic success response (no data)
+interface SuccessResponse {
+    success: true;
+    message: string;
+}
+
+// Type guard to check if value is ProfileData
+function isProfileData(obj: unknown): obj is ProfileData {
+    if (!obj || typeof obj !== 'object') return false;
+    
+    const hasName = 'name' in obj && typeof obj.name === 'string';
+    const hasPhone = 'phone_number' in obj && typeof obj.phone_number === 'string';
+    
+    return hasName && hasPhone;
+}
+
+// Type guard to check if value is ProfilePictureResponse
+function isProfilePictureResponse(obj: unknown): obj is ProfilePictureResponse {
+    if (!obj || typeof obj !== 'object') return false;
+    
+    return 'profile_picture_url' in obj && typeof obj.profile_picture_url === 'string';
 }
 
 export default function Page() {
@@ -91,33 +125,50 @@ export default function Page() {
                 return;
             }
             
-            // Make API call to get profile data
-            const response = await apiRequest("GET", "/api/dashboard/profile/", null, {
-                headers: {
-                    "Authorization": `Bearer ${authToken}`,
+            // Make API call to get profile data with proper typing
+            const response = await apiRequest<ApiResponse<ProfileData>>(
+                "GET", 
+                "/api/dashboard/profile/", 
+                null, 
+                {
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                    }
                 }
-            });
+            );
             
             if (response.success) {
-                const profileData: ProfileData = response.data;
-                
-                // console.log("Loaded profile data:", profileData);
-                
-                // Set form data with real user data
-                setFormData(prev => ({
-                    ...prev,
-                    name: profileData.name || "",
-                    phone_number: profileData.phone_number || ""
-                }));
+                // Use type guard to ensure data is ProfileData
+                if (isProfileData(response.data)) {
+                    const profileData = response.data;
+                    
+                    // console.log("Loaded profile data:", profileData);
+                    
+                    // Set form data with real user data
+                    setFormData(prev => ({
+                        ...prev,
+                        name: profileData.name || "",
+                        phone_number: profileData.phone_number || "",
+                        Country: profileData.country || "",
+                        City: profileData.city || "",
+                        Province: profileData.province || "",
+                        Gender: profileData.gender || "",
+                        Bio: profileData.bio || ""
+                    }));
 
-                // toast.success("Profile data loaded successfully!");
+                    // toast.success("Profile data loaded successfully!");
+                } else {
+                    console.error("Invalid profile data structure:", response.data);
+                    toast.error("Invalid profile data received from server");
+                }
             } else {
                 throw new Error(response.message || "Failed to load profile");
             }
             
         } catch (error: unknown) {
             console.error("Error loading profile:", error);
-            toast.error(error.message || "Error loading profile data");
+            const errorMessage = error instanceof Error ? error.message : "Error loading profile data";
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -161,15 +212,20 @@ export default function Page() {
             const formData = new FormData();
             formData.append('profile_picture', file);
             
-            const response = await apiRequest("POST", "/api/dashboard/profile/picture/", formData, {
-                headers: {
-                    "Authorization": `Bearer ${authToken}`,
+            const response = await apiRequest<ApiResponse<ProfilePictureResponse>>(
+                "POST", 
+                "/api/dashboard/profile/picture/", 
+                formData, 
+                {
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                    }
                 }
-            });
+            );
             
             if (response.success) {
                 // Update preview with server URL if returned
-                if (response.data.profile_picture_url) {
+                if (response.data && isProfilePictureResponse(response.data)) {
                     setPreview(response.data.profile_picture_url);
                 }
                 toast.success("Profile picture updated successfully!");
@@ -211,8 +267,6 @@ export default function Page() {
                 return;
             }
             
-            let response: ApiResponse;
-            
             // TRY APPROACH 1: FormData (Most likely what your API expects)
             const formDataToSend = new FormData();
             formDataToSend.append('name', formData.name);
@@ -226,34 +280,51 @@ export default function Page() {
             // formDataToSend.append('bio', formData.Bio);
             
             // Try PUT with FormData first
-            try {
-                response = await apiRequest("PUT", "/api/dashboard/profile/", formDataToSend, {
+            const putResponse = await apiRequest<ApiResponse<SuccessResponse | unknown>>(
+                "PUT", 
+                "/api/dashboard/profile/", 
+                formDataToSend, 
+                {
                     headers: {
                         "Authorization": `Bearer ${authToken}`,
                     }
-                });
-            } catch (error: unknown) {
-                console.log("PUT with FormData failed, trying POST...");
-                
-                // TRY APPROACH 2: POST with FormData
-                response = await apiRequest("POST", "/api/dashboard/profile/", formDataToSend, {
-                    headers: {
-                        "Authorization": `Bearer ${authToken}`,
-                    }
-                });
+                }
+            );
+
+            if (putResponse.success) {
+                toast.success("Profile updated successfully!");
+                // Refresh profile data to get any server-side changes
+                await fetchProfileData();
+                setSaving(false);
+                return;
             }
             
-            if (response.success) {
+            // If PUT failed, try POST
+            console.log("PUT failed or returned success false, trying POST...");
+            
+            const postResponse = await apiRequest<ApiResponse<SuccessResponse | unknown>>(
+                "POST", 
+                "/api/dashboard/profile/", 
+                formDataToSend, 
+                {
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                    }
+                }
+            );
+            
+            if (postResponse.success) {
                 toast.success("Profile updated successfully!");
                 // Refresh profile data to get any server-side changes
                 await fetchProfileData();
             } else {
-                throw new Error(response.message || "Failed to update profile");
+                throw new Error(postResponse.message || "Failed to update profile");
             }
             
         } catch (error: unknown) {
             console.error("Error updating profile:", error);
-            toast.error(error.message || "Error updating profile. Please try again.");
+            const errorMessage = error instanceof Error ? error.message : "Error updating profile. Please try again.";
+            toast.error(errorMessage);
         } finally {
             setSaving(false);
         }
@@ -292,12 +363,17 @@ export default function Page() {
             };
             
             // Make API call to change password
-            const response = await apiRequest("POST", "/api/dashboard/change-password/", payload, {
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${authToken}`,
+            const response = await apiRequest<ApiResponse<SuccessResponse>>(
+                "POST", 
+                "/api/dashboard/change-password/", 
+                payload, 
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${authToken}`,
+                    }
                 }
-            });
+            );
             
             if (response.success) {
                 toast.success("Password changed successfully!");
@@ -314,7 +390,8 @@ export default function Page() {
             
         } catch (error: unknown) {
             console.error("Error changing password:", error);
-            toast.error(error.message || "Error changing password. Please try again.");
+            const errorMessage = error instanceof Error ? error.message : "Error changing password. Please try again.";
+            toast.error(errorMessage);
         } finally {
             setSaving(false);
         }

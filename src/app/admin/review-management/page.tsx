@@ -16,19 +16,77 @@ interface Review {
     reviewer_name: string;
 }
 
-// interface ApiResponse<T> {
-//     data?: T;
-//     error?: string;
-// }
+interface ReviewsResponse {
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+    results: Review[];
+}
 
-// interface ReviewsResponse {
-//     total: number;
-//     page: number;
-//     page_size: number;
-//     total_pages: number;
-//     results: Review[];
-// }
+// Helper function to safely parse numbers
+const safeParseNumber = (value: unknown, defaultValue: number): number => {
+    if (typeof value === 'number') {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const parsed = parseInt(value, 10);
+        return isNaN(parsed) ? defaultValue : parsed;
+    }
+    return defaultValue;
+};
 
+// Helper function to check if value is object
+const isObject = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === 'object' && value !== null;
+};
+
+// Type guard to check if object has properties of ReviewsResponse
+function isReviewsResponse(obj: unknown): obj is ReviewsResponse {
+    if (!isObject(obj)) return false;
+    
+    const hasTotal = 'total' in obj;
+    const hasPage = 'page' in obj;
+    const hasResults = 'results' in obj && Array.isArray(obj.results);
+    
+    return hasTotal && hasPage && hasResults;
+}
+
+// Type guard to check if object has a nested data property that's a ReviewsResponse
+function hasReviewsResponseData(obj: unknown): obj is { data: ReviewsResponse } {
+    if (!isObject(obj)) return false;
+    
+    const hasData = 'data' in obj;
+    if (!hasData) return false;
+    
+    const data = obj.data;
+    return isObject(data) && isReviewsResponse(data);
+}
+
+// Type guard to check if object has direct results array
+function hasDirectResults(obj: unknown): obj is { 
+    results: Review[]; 
+    total?: unknown; 
+    page?: unknown; 
+    total_pages?: unknown;
+} {
+    if (!isObject(obj)) return false;
+    
+    return 'results' in obj && Array.isArray(obj.results);
+}
+
+// Helper to extract pagination info from unknown response
+function extractPaginationInfo(response: unknown, page: number) {
+    if (!isObject(response)) {
+        return { totalPages: 1, totalReviews: 0, currentPage: page };
+    }
+    
+    return {
+        totalPages: safeParseNumber(response.total_pages, 1),
+        totalReviews: safeParseNumber(response.total, 0),
+        currentPage: safeParseNumber(response.page, page)
+    };
+}
 
 export default function ReviewManagement() {
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -42,7 +100,7 @@ export default function ReviewManagement() {
     const fetchReviews = async (page: number = 1) => {
         try {
             setLoading(true);
-            const response = await apiRequest(
+            const response = await apiRequest<unknown>(
                 "GET", 
                 `/service/review/?page=${page}&page_size=${pageSize}`, 
                 null,
@@ -55,14 +113,40 @@ export default function ReviewManagement() {
 
             console.log("abc", response)
 
-            if (response.results) {
-                setReviews(response.results || []);
-                setTotalPages(response.total_pages);
-                setTotalReviews(response.total);
-                setCurrentPage(response.page);
-            } else if (response.error) {
-                console.error("Error fetching reviews:", response.error);
+            // Handle different response structures
+            let reviewsData: Review[] = [];
+            let paginationInfo = { totalPages: 1, totalReviews: 0, currentPage: page };
+
+            // Case 1: Response has nested data property with ReviewsResponse
+            if (hasReviewsResponseData(response)) {
+                const data = response.data;
+                reviewsData = data.results || [];
+                paginationInfo = {
+                    totalPages: safeParseNumber(data.total_pages, 1),
+                    totalReviews: safeParseNumber(data.total, 0),
+                    currentPage: safeParseNumber(data.page, page)
+                };
             }
+            // Case 2: Response is directly a ReviewsResponse
+            else if (isReviewsResponse(response)) {
+                reviewsData = response.results || [];
+                paginationInfo = {
+                    totalPages: safeParseNumber(response.total_pages, 1),
+                    totalReviews: safeParseNumber(response.total, 0),
+                    currentPage: safeParseNumber(response.page, page)
+                };
+            }
+            // Case 3: Response has direct results array
+            else if (hasDirectResults(response)) {
+                reviewsData = response.results;
+                paginationInfo = extractPaginationInfo(response, page);
+            }
+
+            setReviews(reviewsData);
+            setTotalPages(paginationInfo.totalPages);
+            setTotalReviews(paginationInfo.totalReviews);
+            setCurrentPage(paginationInfo.currentPage);
+
         } catch (error) {
             console.error("Error fetching reviews:", error);
         } finally {
@@ -78,7 +162,7 @@ export default function ReviewManagement() {
         if (!window.confirm('Are you sure you want to delete this review?')) return;
 
         try {
-            const response = await apiRequest(
+            const response = await apiRequest<unknown>(
                 "DELETE", 
                 `/service/review/${reviewId}/`, 
                 null,
@@ -89,8 +173,24 @@ export default function ReviewManagement() {
                 }
             );
 
-            if (response.data || !response.error) {
-                // Refresh the current page or go to previous page if current page becomes empty
+            // Check if deletion was successful
+            if (isObject(response)) {
+                if (!('error' in response) || response.error === undefined) {
+                    // Refresh the current page or go to previous page if current page becomes empty
+                    if (reviews.length === 1 && currentPage > 1) {
+                        toast.success("Review deleted successfully");
+                        fetchReviews(currentPage - 1);
+                    } else {
+                        toast.success("Review deleted successfully");
+                        fetchReviews(currentPage);
+                    }
+                } else {
+                    const errorMessage = typeof response.error === 'string' ? response.error : 'Unknown error';
+                    console.error("Failed to delete review:", errorMessage);
+                    toast.error("Failed to delete review: " + errorMessage);
+                }
+            } else {
+                // Response is not an object, assume success
                 if (reviews.length === 1 && currentPage > 1) {
                     toast.success("Review deleted successfully");
                     fetchReviews(currentPage - 1);
@@ -98,9 +198,6 @@ export default function ReviewManagement() {
                     toast.success("Review deleted successfully");
                     fetchReviews(currentPage);
                 }
-            } else if (response.error) {
-                console.error("Failed to delete review:", response.error);
-                toast.error("Failed to delete review: " + response.error);
             }
         } catch (error) {
             console.error("Error deleting review:", error);
