@@ -17,8 +17,7 @@ interface ApiResponse<T = unknown> {
 interface ProfileData {
     name: string;
     phone_number: string;
-    profile_picture?: string; // Add this line
-    // Add other fields that might be returned from API
+    profile_picture?: string;
     country?: string;
     city?: string;
     province?: string;
@@ -44,7 +43,7 @@ interface PasswordFormData {
 
 // Interface for profile picture response
 interface ProfilePictureResponse {
-    profile_picture: string; // Changed from profile_picture_url
+    profile_picture: string;
 }
 
 // Interface for generic success response (no data)
@@ -57,8 +56,8 @@ interface SuccessResponse {
 function isProfileData(obj: unknown): obj is ProfileData {
     if (!obj || typeof obj !== 'object') return false;
 
-    const hasName = 'name' in obj && typeof obj.name === 'string';
-    const hasPhone = 'phone_number' in obj && typeof obj.phone_number === 'string';
+    const hasName = 'name' in obj && typeof (obj as ProfileData).name === 'string';
+    const hasPhone = 'phone_number' in obj && typeof (obj as ProfileData).phone_number === 'string';
 
     return hasName && hasPhone;
 }
@@ -68,7 +67,7 @@ function isProfilePictureResponse(obj: unknown): obj is ProfilePictureResponse {
     if (!obj || typeof obj !== 'object') return false;
 
     // Check if profile_picture exists and is a string
-    return 'profile_picture' in obj && typeof (obj as any).profile_picture === 'string';
+    return 'profile_picture' in obj && typeof (obj as ProfilePictureResponse).profile_picture === 'string';
 }
 
 export default function Page() {
@@ -143,8 +142,6 @@ export default function Page() {
                 if (isProfileData(response.data)) {
                     const profileData = response.data;
 
-                    // console.log("Loaded profile data:", profileData);
-
                     // Set form data with real user data
                     setFormData(prev => ({
                         ...prev,
@@ -157,14 +154,11 @@ export default function Page() {
                         Bio: profileData.bio || ""
                     }));
 
-                    // KEY FIX: Set the preview with the profile picture URL from API
                     // Set the preview with the profile picture URL from API
                     if (profileData.profile_picture) {
                         const fullUrl = getFullImageUrl(profileData.profile_picture);
                         setPreview(fullUrl);
                     }
-
-                    // toast.success("Profile data loaded successfully!");
                 } else {
                     console.error("Invalid profile data structure:", response.data);
                     toast.error("Invalid profile data received from server");
@@ -217,12 +211,43 @@ export default function Page() {
             setPreview(imageUrl);
             toast.success("Profile picture updated!");
 
-            // Optionally upload to server
+            // Upload to server
             uploadProfilePicture(file);
         }
     };
 
-    // Function to upload profile picture
+    // Helper function to extract profile picture URL from response
+    const extractProfilePictureUrl = (data: unknown): string | null => {
+        if (!data) return null;
+
+        // If data is already a string, return it
+        if (typeof data === "string") return data;
+
+        // If data is an object, look for common field names
+        if (typeof data === "object" && data !== null) {
+            const obj = data as Record<string, unknown>;
+
+            // Try different possible field names
+            const possibleFields = [
+                "profile_picture",
+                "profile_picture_url",
+                "profile_image",
+                "image_url",
+                "url",
+                "avatar",
+                "picture",
+            ];
+
+            for (const field of possibleFields) {
+                if (obj[field] && typeof obj[field] === "string") {
+                    return obj[field] as string;
+                }
+            }
+        }
+
+        return null;
+    };
+
     // Function to upload profile picture
     const uploadProfilePicture = async (file: File) => {
         try {
@@ -248,78 +273,50 @@ export default function Page() {
                 }
             );
 
-            console.log("Full API response:", response); // Log the entire response
+            console.log("Full API response:", response);
 
             if (response.success) {
-                console.log("Response data:", response.data); // Log the data part
-                console.log("Response data type:", typeof response.data); // Log the type
+                console.log("Response data:", response.data);
 
-                // First check if response.data exists
-                if (response.data) {
-                    console.log("Checking if isProfilePictureResponse:", isProfilePictureResponse(response.data));
+                // Try the type guard first
+                if (isProfilePictureResponse(response.data)) {
+                    console.log("Got profile picture URL from ProfilePictureResponse");
+                    const newImageUrl = response.data.profile_picture;
+                    console.log("New image URL:", newImageUrl);
 
-                    if (isProfilePictureResponse(response.data)) {
-                        console.log("iiiiiiiiiiiii - Got profile picture URL");
-                        const newImageUrl = response.data.profile_picture;
-                        console.log("New image URL:", newImageUrl);
+                    setPreview(newImageUrl);
 
-                        setPreview(newImageUrl);
+                    // Store in localStorage
+                    const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
+                    localStorage.setItem('profile', JSON.stringify({
+                        ...currentProfile,
+                        profile_picture: newImageUrl
+                    }));
+
+                    // Dispatch a custom event
+                    window.dispatchEvent(new Event('profilePictureUpdated'));
+                    toast.success("Profile picture updated successfully!");
+                } else {
+                    // Try extracting from the data using our helper
+                    const profilePictureUrl = extractProfilePictureUrl(response.data);
+                    
+                    if (profilePictureUrl) {
+                        console.log("Extracted profile picture URL:", profilePictureUrl);
+                        setPreview(profilePictureUrl);
 
                         // Store in localStorage
                         const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
                         localStorage.setItem('profile', JSON.stringify({
                             ...currentProfile,
-                            profile_picture: newImageUrl
+                            profile_picture: profilePictureUrl
                         }));
 
                         // Dispatch a custom event
                         window.dispatchEvent(new Event('profilePictureUpdated'));
                         toast.success("Profile picture updated successfully!");
                     } else {
-                        console.log("Response data doesn't match expected structure:", response.data);
-                        // Try alternative approach - maybe the profile picture is in a different format
-                        if (response.data && typeof response.data === 'object') {
-                            const data = response.data as any;
-                            // Check for common field names
-                            if (data.profile_picture) {
-                                console.log("Found profile_picture field:", data.profile_picture);
-                                setPreview(data.profile_picture);
-                                // Store in localStorage
-                                const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
-                                localStorage.setItem('profile', JSON.stringify({
-                                    ...currentProfile,
-                                    profile_picture: data.profile_picture
-                                }));
-                                window.dispatchEvent(new Event('profilePictureUpdated'));
-                                toast.success("Profile picture updated successfully!");
-                            } else if (data.url) {
-                                console.log("Found url field:", data.url);
-                                setPreview(data.url);
-                                // Store in localStorage
-                                const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
-                                localStorage.setItem('profile', JSON.stringify({
-                                    ...currentProfile,
-                                    profile_picture: data.url
-                                }));
-                                window.dispatchEvent(new Event('profilePictureUpdated'));
-                                toast.success("Profile picture updated successfully!");
-                            }
-                        }
-                    }
-                } else {
-                    console.log("Response.data is undefined or null");
-                    // Maybe the API returns the URL directly in data
-                    if (typeof response.data === 'string') {
-                        console.log("Response.data is a string:", response.data);
-                        setPreview(response.data);
-                        // Store in localStorage
-                        const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
-                        localStorage.setItem('profile', JSON.stringify({
-                            ...currentProfile,
-                            profile_picture: response.data
-                        }));
-                        window.dispatchEvent(new Event('profilePictureUpdated'));
-                        toast.success("Profile picture updated successfully!");
+                        console.log("Could not extract profile picture URL from:", response.data);
+                        toast.error("Could not get the new profile picture URL");
                     }
                 }
             } else {
@@ -350,7 +347,7 @@ export default function Page() {
         }));
     };
 
-    // Handle profile form submission - Try different approaches
+    // Handle profile form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
@@ -363,19 +360,10 @@ export default function Page() {
                 return;
             }
 
-            // TRY APPROACH 1: FormData (Most likely what your API expects)
             const formDataToSend = new FormData();
             formDataToSend.append('name', formData.name);
             formDataToSend.append('phone_number', formData.phone_number);
 
-            // Add other fields if your backend supports them
-            // formDataToSend.append('country', formData.Country);
-            // formDataToSend.append('city', formData.City);
-            // formDataToSend.append('province', formData.Province);
-            // formDataToSend.append('gender', formData.Gender);
-            // formDataToSend.append('bio', formData.Bio);
-
-            // Try PUT with FormData first
             const putResponse = await apiRequest<ApiResponse<SuccessResponse | unknown>>(
                 "PUT",
                 "/api/dashboard/profile/",
@@ -389,13 +377,11 @@ export default function Page() {
 
             if (putResponse.success) {
                 toast.success("Profile updated successfully!");
-                // Refresh profile data to get any server-side changes
                 await fetchProfileData();
                 setSaving(false);
                 return;
             }
 
-            // If PUT failed, try POST
             console.log("PUT failed or returned success false, trying POST...");
 
             const postResponse = await apiRequest<ApiResponse<SuccessResponse | unknown>>(
@@ -411,12 +397,10 @@ export default function Page() {
 
             if (postResponse.success) {
                 toast.success("Profile updated successfully!");
-                // Refresh profile data to get any server-side changes
                 await fetchProfileData();
             } else {
                 throw new Error(postResponse.message || "Failed to update profile");
             }
-
         } catch (error: unknown) {
             console.error("Error updating profile:", error);
             const errorMessage = error instanceof Error ? error.message : "Error updating profile. Please try again.";
@@ -452,13 +436,11 @@ export default function Page() {
                 return;
             }
 
-            // Prepare password change payload
             const payload = {
                 old_password: passwordData.old_password,
                 new_password: passwordData.new_password
             };
 
-            // Make API call to change password
             const response = await apiRequest<ApiResponse<SuccessResponse>>(
                 "POST",
                 "/api/dashboard/change-password/",
@@ -474,7 +456,6 @@ export default function Page() {
             if (response.success) {
                 toast.success("Password changed successfully!");
 
-                // Reset password form
                 setPasswordData({
                     old_password: "",
                     new_password: "",
@@ -483,7 +464,6 @@ export default function Page() {
             } else {
                 throw new Error(response.message || "Failed to change password");
             }
-
         } catch (error: unknown) {
             console.error("Error changing password:", error);
             const errorMessage = error instanceof Error ? error.message : "Error changing password. Please try again.";
@@ -563,7 +543,6 @@ export default function Page() {
                                             alt="Profile"
                                             className="w-full h-full object-cover"
                                             onError={(e) => {
-                                                // Handle image loading errors
                                                 console.error("Failed to load profile image:", preview);
                                                 e.currentTarget.style.display = 'none';
                                             }}
@@ -612,7 +591,7 @@ export default function Page() {
                                         />
                                     </div>
 
-                                    {/* Phone Number Field (Disabled) */}
+                                    {/* Phone Number Field */}
                                     <div>
                                         <label className="block text-sm font-semibold" htmlFor="phone_number">
                                             Phone Number
@@ -623,10 +602,8 @@ export default function Page() {
                                             name="phone_number"
                                             value={formData.phone_number}
                                             onChange={handleInputChange}
-                                            // disabled
-                                            className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full mt-2 p-3 border border-[#60A5FB66] text-white rounded-lg text-sm"
                                         />
-                                        {/* <small className="text-gray-400 text-xs">Phone number cannot be changed</small> */}
                                     </div>
 
                                     {/* Save Button */}

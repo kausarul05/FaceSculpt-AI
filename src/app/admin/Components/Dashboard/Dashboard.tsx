@@ -62,24 +62,24 @@ interface ApiResponse<T> {
     message?: string;
 }
 
-interface UsersApiResponse {
-    success: boolean;
-    data?: {
-        results?: User[];
-        users?: User[];
-        data?: User[];
-        total?: number;
-        count?: number;
-        total_pages?: number;
-        [key: string]: unknown; // Allow other properties
-    };
-    results?: User[];
-    users?: User[];
-    total?: number;
-    count?: number;
-    total_pages?: number;
-    [key: string]: unknown; // Allow other properties
-}
+// interface UsersApiResponse {
+//     success: boolean;
+//     data?: {
+//         results?: User[];
+//         users?: User[];
+//         data?: User[];
+//         total?: number;
+//         count?: number;
+//         total_pages?: number;
+//         [key: string]: unknown; // Allow other properties
+//     };
+//     results?: User[];
+//     users?: User[];
+//     total?: number;
+//     count?: number;
+//     total_pages?: number;
+//     [key: string]: unknown; // Allow other properties
+// }
 
 interface CustomTooltipProps extends TooltipProps<number, string> {
     active?: boolean;

@@ -2,13 +2,21 @@
 
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { User } from "lucide-react"; // For fallback icon
+import { User } from "lucide-react";
 import { apiRequest } from "@/app/lib/api";
 
 interface ProfileData {
     name: string;
     phone_number: string;
-    profile_picture: string;
+    profile_picture?: string; // Make this optional
+}
+
+interface ApiResponse<T = unknown> {
+    success: boolean;
+    code: number;
+    message: string;
+    timestamp: number;
+    data: T;
 }
 
 export default function ProfileImage() {
@@ -20,11 +28,14 @@ export default function ProfileImage() {
         fetchProfile();
 
         const handleProfileUpdate = () => {
-            // Re-fetch or update from localStorage
             const storedProfile = localStorage.getItem('profile');
             if (storedProfile) {
-                const parsedProfile = JSON.parse(storedProfile);
-                setProfileData(prev => prev ? { ...prev, ...parsedProfile } : parsedProfile);
+                try {
+                    const parsedProfile = JSON.parse(storedProfile);
+                    setProfileData(prev => prev ? { ...prev, ...parsedProfile } : parsedProfile);
+                } catch (err) {
+                    console.error("Failed to parse stored profile:", err);
+                }
             }
         };
 
@@ -40,19 +51,40 @@ export default function ProfileImage() {
             setIsLoading(true);
             setError(null);
 
-            const data = await apiRequest<{ data: ProfileData }>(
+            const authToken = localStorage.getItem("authToken");
+            if (!authToken) {
+                setIsLoading(false);
+                return;
+            }
+
+            // Use unknown type first, then validate
+            const response = await apiRequest<unknown>(
                 "GET",
                 "/api/dashboard/profile/",
                 null,
                 {
                     headers: {
-                        Authorization: `Bearer ${localStorage.getItem("authToken")}`
+                        Authorization: `Bearer ${authToken}`
                     }
                 }
             );
 
-            if (data.success) {
-                setProfileData(data.data);
+            console.log("Raw response:", response); // Debug log
+
+            // Type guard to check if response has the expected structure
+            if (
+                response &&
+                typeof response === 'object' &&
+                'success' in response &&
+                'data' in response &&
+                response.success === true &&
+                response.data &&
+                typeof response.data === 'object'
+            ) {
+                const data = response.data as ProfileData;
+                setProfileData(data);
+            } else {
+                setError("Invalid response structure");
             }
         } catch (err) {
             console.error("Failed to fetch profile:", err);
@@ -84,9 +116,8 @@ export default function ProfileImage() {
             alt={profileData.name || "Profile"}
             width={40}
             height={40}
-            className="w-10 h-10 object-cover rounded-full cursor-pointer"
-            // If the image is from an external URL, you need to configure it in next.config.js
-            unoptimized={true} // Consider removing this after configuring next.config.js
+            className="w-10 h-10 object-cover rounded-full cursor-pointer hover:opacity-80 transition"
+            unoptimized={true}
         />
     );
 }
