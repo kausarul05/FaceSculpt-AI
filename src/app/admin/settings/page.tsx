@@ -2,7 +2,6 @@
 import { Pencil } from "lucide-react";
 import Image from "next/image";
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import profile from "@/../public/images/profile.jpg"
 import { toast } from "react-toastify";
 import { apiRequest } from "@/app/lib/api";
 
@@ -18,6 +17,7 @@ interface ApiResponse<T = unknown> {
 interface ProfileData {
     name: string;
     phone_number: string;
+    profile_picture?: string; // Add this line
     // Add other fields that might be returned from API
     country?: string;
     city?: string;
@@ -56,30 +56,30 @@ interface SuccessResponse {
 // Type guard to check if value is ProfileData
 function isProfileData(obj: unknown): obj is ProfileData {
     if (!obj || typeof obj !== 'object') return false;
-    
+
     const hasName = 'name' in obj && typeof obj.name === 'string';
     const hasPhone = 'phone_number' in obj && typeof obj.phone_number === 'string';
-    
+
     return hasName && hasPhone;
 }
 
 // Type guard to check if value is ProfilePictureResponse
 function isProfilePictureResponse(obj: unknown): obj is ProfilePictureResponse {
     if (!obj || typeof obj !== 'object') return false;
-    
+
     return 'profile_picture_url' in obj && typeof obj.profile_picture_url === 'string';
 }
 
 export default function Page() {
     // State for active tab (profile or password)
     const [activeTab, setActiveTab] = useState("profile");
-    
+
     // Refs and state for profile image handling
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const [preview, setPreview] = useState<string>(profile.src);
+    const [preview, setPreview] = useState<string>("");
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
-    
+
     // Form data state for profile information
     const [formData, setFormData] = useState<ProfileFormData>({
         name: "",
@@ -118,32 +118,32 @@ export default function Page() {
     const fetchProfileData = useCallback(async () => {
         try {
             setLoading(true);
-            
+
             const authToken = getAuthToken();
             if (!authToken) {
                 toast.error("Authentication token not found. Please login again.");
                 return;
             }
-            
+
             // Make API call to get profile data with proper typing
             const response = await apiRequest<ApiResponse<ProfileData>>(
-                "GET", 
-                "/api/dashboard/profile/", 
-                null, 
+                "GET",
+                "/api/dashboard/profile/",
+                null,
                 {
                     headers: {
                         "Authorization": `Bearer ${authToken}`,
                     }
                 }
             );
-            
+
             if (response.success) {
                 // Use type guard to ensure data is ProfileData
                 if (isProfileData(response.data)) {
                     const profileData = response.data;
-                    
+
                     // console.log("Loaded profile data:", profileData);
-                    
+
                     // Set form data with real user data
                     setFormData(prev => ({
                         ...prev,
@@ -156,6 +156,13 @@ export default function Page() {
                         Bio: profileData.bio || ""
                     }));
 
+                    // KEY FIX: Set the preview with the profile picture URL from API
+                    // Set the preview with the profile picture URL from API
+                    if (profileData.profile_picture) {
+                        const fullUrl = getFullImageUrl(profileData.profile_picture);
+                        setPreview(fullUrl);
+                    }
+
                     // toast.success("Profile data loaded successfully!");
                 } else {
                     console.error("Invalid profile data structure:", response.data);
@@ -164,7 +171,7 @@ export default function Page() {
             } else {
                 throw new Error(response.message || "Failed to load profile");
             }
-            
+
         } catch (error: unknown) {
             console.error("Error loading profile:", error);
             const errorMessage = error instanceof Error ? error.message : "Error loading profile data";
@@ -186,6 +193,20 @@ export default function Page() {
         }
     };
 
+    // Helper function to construct full URL for profile picture
+    const getFullImageUrl = (url: string): string => {
+        if (!url) return "";
+
+        // If URL is already absolute, return as-is
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
+        }
+
+        // If URL starts with /, prepend with your base URL
+        const baseUrl = "https://server.facesculptai.com";
+        return `${baseUrl}${url}`;
+    };
+
     // Handle profile picture file selection
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -194,9 +215,9 @@ export default function Page() {
             const imageUrl = URL.createObjectURL(file);
             setPreview(imageUrl);
             toast.success("Profile picture updated!");
-            
+
             // Optionally upload to server
-            // uploadProfilePicture(file);
+            uploadProfilePicture(file);
         }
     };
 
@@ -208,21 +229,21 @@ export default function Page() {
                 toast.error("Authentication token not found.");
                 return;
             }
-            
+
             const formData = new FormData();
             formData.append('profile_picture', file);
-            
+
             const response = await apiRequest<ApiResponse<ProfilePictureResponse>>(
-                "POST", 
-                "/api/dashboard/profile/picture/", 
-                formData, 
+                "PUT",
+                "/api/dashboard/profile/",
+                formData,
                 {
                     headers: {
                         "Authorization": `Bearer ${authToken}`,
                     }
                 }
             );
-            
+
             if (response.success) {
                 // Update preview with server URL if returned
                 if (response.data && isProfilePictureResponse(response.data)) {
@@ -258,7 +279,7 @@ export default function Page() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        
+
         try {
             const authToken = getAuthToken();
             if (!authToken) {
@@ -266,24 +287,24 @@ export default function Page() {
                 setSaving(false);
                 return;
             }
-            
+
             // TRY APPROACH 1: FormData (Most likely what your API expects)
             const formDataToSend = new FormData();
             formDataToSend.append('name', formData.name);
             formDataToSend.append('phone_number', formData.phone_number);
-            
+
             // Add other fields if your backend supports them
             // formDataToSend.append('country', formData.Country);
             // formDataToSend.append('city', formData.City);
             // formDataToSend.append('province', formData.Province);
             // formDataToSend.append('gender', formData.Gender);
             // formDataToSend.append('bio', formData.Bio);
-            
+
             // Try PUT with FormData first
             const putResponse = await apiRequest<ApiResponse<SuccessResponse | unknown>>(
-                "PUT", 
-                "/api/dashboard/profile/", 
-                formDataToSend, 
+                "PUT",
+                "/api/dashboard/profile/",
+                formDataToSend,
                 {
                     headers: {
                         "Authorization": `Bearer ${authToken}`,
@@ -298,21 +319,21 @@ export default function Page() {
                 setSaving(false);
                 return;
             }
-            
+
             // If PUT failed, try POST
             console.log("PUT failed or returned success false, trying POST...");
-            
+
             const postResponse = await apiRequest<ApiResponse<SuccessResponse | unknown>>(
-                "POST", 
-                "/api/dashboard/profile/", 
-                formDataToSend, 
+                "POST",
+                "/api/dashboard/profile/",
+                formDataToSend,
                 {
                     headers: {
                         "Authorization": `Bearer ${authToken}`,
                     }
                 }
             );
-            
+
             if (postResponse.success) {
                 toast.success("Profile updated successfully!");
                 // Refresh profile data to get any server-side changes
@@ -320,7 +341,7 @@ export default function Page() {
             } else {
                 throw new Error(postResponse.message || "Failed to update profile");
             }
-            
+
         } catch (error: unknown) {
             console.error("Error updating profile:", error);
             const errorMessage = error instanceof Error ? error.message : "Error updating profile. Please try again.";
@@ -333,7 +354,7 @@ export default function Page() {
     // Handle password change submission
     const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Validate that new passwords match
         if (passwordData.new_password !== passwordData.confirm_password) {
             toast.error("New passwords do not match!");
@@ -347,7 +368,7 @@ export default function Page() {
         }
 
         setSaving(true);
-        
+
         try {
             const authToken = getAuthToken();
             if (!authToken) {
@@ -355,18 +376,18 @@ export default function Page() {
                 setSaving(false);
                 return;
             }
-            
+
             // Prepare password change payload
             const payload = {
                 old_password: passwordData.old_password,
                 new_password: passwordData.new_password
             };
-            
+
             // Make API call to change password
             const response = await apiRequest<ApiResponse<SuccessResponse>>(
-                "POST", 
-                "/api/dashboard/change-password/", 
-                payload, 
+                "POST",
+                "/api/dashboard/change-password/",
+                payload,
                 {
                     headers: {
                         "Content-Type": "application/json",
@@ -374,10 +395,10 @@ export default function Page() {
                     }
                 }
             );
-            
+
             if (response.success) {
                 toast.success("Password changed successfully!");
-                
+
                 // Reset password form
                 setPasswordData({
                     old_password: "",
@@ -387,7 +408,7 @@ export default function Page() {
             } else {
                 throw new Error(response.message || "Failed to change password");
             }
-            
+
         } catch (error: unknown) {
             console.error("Error changing password:", error);
             const errorMessage = error instanceof Error ? error.message : "Error changing password. Please try again.";
@@ -409,7 +430,7 @@ export default function Page() {
                             <div className="h-10 bg-gray-700 rounded"></div>
                         </div>
                     </div>
-                    
+
                     {/* Main content loading skeleton */}
                     <div className="bg-[#1A2028] w-full rounded-lg p-6">
                         <div className="animate-pulse">
@@ -434,9 +455,8 @@ export default function Page() {
                     <div className="mb-2">
                         <button
                             onClick={() => setActiveTab("profile")}
-                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${
-                                activeTab === "profile" ? "bg-[#60A5FB]" : ""
-                            }`}
+                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${activeTab === "profile" ? "bg-[#60A5FB]" : ""
+                                }`}
                         >
                             Profile Information
                         </button>
@@ -444,9 +464,8 @@ export default function Page() {
                     <div>
                         <button
                             onClick={() => setActiveTab("password")}
-                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${
-                                activeTab === "password" ? "bg-[#60A5FB]" : ""
-                            }`}
+                            className={`text-white font-semibold cursor-pointer mt-2 w-full text-start p-2 rounded ${activeTab === "password" ? "bg-[#60A5FB]" : ""
+                                }`}
                         >
                             Change Password
                         </button>
@@ -459,16 +478,27 @@ export default function Page() {
                     {activeTab === "profile" && (
                         <div>
                             <h2 className="text-lg font-semibold mb-4">Profile</h2>
-                            
+
                             {/* Profile Picture Section */}
                             <div className="relative mb-5">
-                                <Image
-                                    src={preview}
-                                    alt="Profile"
-                                    width={96}
-                                    height={96}
-                                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover"
-                                />
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-gray-700">
+                                    {preview ? (
+                                        <img
+                                            src={preview}
+                                            alt="Profile"
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                // Handle image loading errors
+                                                console.error("Failed to load profile image:", preview);
+                                                e.currentTarget.style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                            No Image
+                                        </div>
+                                    )}
+                                </div>
 
                                 {/* Edit Profile Picture Button */}
                                 <div
@@ -487,7 +517,7 @@ export default function Page() {
                                     onChange={handleFileChange}
                                 />
                             </div>
-                            
+
                             {/* Profile Form */}
                             <form onSubmit={handleSubmit}>
                                 <div className="space-y-4 sm:space-y-6">
@@ -558,7 +588,7 @@ export default function Page() {
                                         className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />
                                 </div>
-                                
+
                                 {/* New Password Field */}
                                 <div className="mb-6">
                                     <label className="block text-sm font-medium mb-2">
@@ -573,7 +603,7 @@ export default function Page() {
                                         className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />
                                 </div>
-                                
+
                                 {/* Confirm New Password Field */}
                                 <div className="mb-6">
                                     <label className="block text-sm font-medium mb-2">
@@ -588,10 +618,10 @@ export default function Page() {
                                         className="w-full border border-[#60A5FB66] rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#007ED6] placeholder-gray-400"
                                     />
                                 </div>
-                                
+
                                 {/* Update Password Button */}
                                 <div className="flex justify-end">
-                                    <button 
+                                    <button
                                         type="submit"
                                         disabled={saving}
                                         className="bg-[#60A5FB] text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
