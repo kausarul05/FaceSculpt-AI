@@ -44,7 +44,7 @@ interface PasswordFormData {
 
 // Interface for profile picture response
 interface ProfilePictureResponse {
-    profile_picture_url: string;
+    profile_picture: string; // Changed from profile_picture_url
 }
 
 // Interface for generic success response (no data)
@@ -67,7 +67,8 @@ function isProfileData(obj: unknown): obj is ProfileData {
 function isProfilePictureResponse(obj: unknown): obj is ProfilePictureResponse {
     if (!obj || typeof obj !== 'object') return false;
 
-    return 'profile_picture_url' in obj && typeof obj.profile_picture_url === 'string';
+    // Check if profile_picture exists and is a string
+    return 'profile_picture' in obj && typeof (obj as any).profile_picture === 'string';
 }
 
 export default function Page() {
@@ -222,6 +223,7 @@ export default function Page() {
     };
 
     // Function to upload profile picture
+    // Function to upload profile picture
     const uploadProfilePicture = async (file: File) => {
         try {
             const authToken = getAuthToken();
@@ -232,6 +234,8 @@ export default function Page() {
 
             const formData = new FormData();
             formData.append('profile_picture', file);
+
+            console.log("Uploading profile picture...");
 
             const response = await apiRequest<ApiResponse<ProfilePictureResponse>>(
                 "PUT",
@@ -244,12 +248,83 @@ export default function Page() {
                 }
             );
 
+            console.log("Full API response:", response); // Log the entire response
+
             if (response.success) {
-                // Update preview with server URL if returned
-                if (response.data && isProfilePictureResponse(response.data)) {
-                    setPreview(response.data.profile_picture_url);
+                console.log("Response data:", response.data); // Log the data part
+                console.log("Response data type:", typeof response.data); // Log the type
+
+                // First check if response.data exists
+                if (response.data) {
+                    console.log("Checking if isProfilePictureResponse:", isProfilePictureResponse(response.data));
+
+                    if (isProfilePictureResponse(response.data)) {
+                        console.log("iiiiiiiiiiiii - Got profile picture URL");
+                        const newImageUrl = response.data.profile_picture;
+                        console.log("New image URL:", newImageUrl);
+
+                        setPreview(newImageUrl);
+
+                        // Store in localStorage
+                        const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
+                        localStorage.setItem('profile', JSON.stringify({
+                            ...currentProfile,
+                            profile_picture: newImageUrl
+                        }));
+
+                        // Dispatch a custom event
+                        window.dispatchEvent(new Event('profilePictureUpdated'));
+                        toast.success("Profile picture updated successfully!");
+                    } else {
+                        console.log("Response data doesn't match expected structure:", response.data);
+                        // Try alternative approach - maybe the profile picture is in a different format
+                        if (response.data && typeof response.data === 'object') {
+                            const data = response.data as any;
+                            // Check for common field names
+                            if (data.profile_picture) {
+                                console.log("Found profile_picture field:", data.profile_picture);
+                                setPreview(data.profile_picture);
+                                // Store in localStorage
+                                const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
+                                localStorage.setItem('profile', JSON.stringify({
+                                    ...currentProfile,
+                                    profile_picture: data.profile_picture
+                                }));
+                                window.dispatchEvent(new Event('profilePictureUpdated'));
+                                toast.success("Profile picture updated successfully!");
+                            } else if (data.url) {
+                                console.log("Found url field:", data.url);
+                                setPreview(data.url);
+                                // Store in localStorage
+                                const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
+                                localStorage.setItem('profile', JSON.stringify({
+                                    ...currentProfile,
+                                    profile_picture: data.url
+                                }));
+                                window.dispatchEvent(new Event('profilePictureUpdated'));
+                                toast.success("Profile picture updated successfully!");
+                            }
+                        }
+                    }
+                } else {
+                    console.log("Response.data is undefined or null");
+                    // Maybe the API returns the URL directly in data
+                    if (typeof response.data === 'string') {
+                        console.log("Response.data is a string:", response.data);
+                        setPreview(response.data);
+                        // Store in localStorage
+                        const currentProfile = JSON.parse(localStorage.getItem('profile') || '{}');
+                        localStorage.setItem('profile', JSON.stringify({
+                            ...currentProfile,
+                            profile_picture: response.data
+                        }));
+                        window.dispatchEvent(new Event('profilePictureUpdated'));
+                        toast.success("Profile picture updated successfully!");
+                    }
                 }
-                toast.success("Profile picture updated successfully!");
+            } else {
+                console.log("API returned success: false", response.message);
+                toast.error(response.message || "Failed to upload profile picture");
             }
         } catch (error) {
             console.error("Error uploading profile picture:", error);
