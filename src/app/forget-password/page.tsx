@@ -81,7 +81,7 @@ export default function ForgotPasswordModal() {
     useEffect(() => {
         if (currentStep === "success") {
             const timer = setTimeout(() => {
-                router.push("/admin");
+                router.push("/");
             }, 2000); // 2 seconds delay for user to see success message
             return () => clearTimeout(timer);
         }
@@ -205,7 +205,7 @@ export default function ForgotPasswordModal() {
                 }
             );
 
-            if (response.success && response.data?.verified) {
+            if (response.success) {
                 setCurrentStep("newPassword");
                 toast.success("OTP verified successfully!");
                 setMessage("");
@@ -503,11 +503,11 @@ export default function ForgotPasswordModal() {
                             </div>
 
                             {/* Demo Mode Notice */}
-                            {true && ( // Change to false in production
+                            {/* {true && ( // Change to false in production
                                 <div className="text-xs text-yellow-400 bg-yellow-900/20 p-2 rounded border border-yellow-700/30">
                                     <strong>Demo Mode:</strong> Use any phone number and OTP "123456"
                                 </div>
-                            )}
+                            )} */}
 
                             {/* Continue Button */}
                             <button
